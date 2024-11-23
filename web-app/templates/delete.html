@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete Exercises</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style2.css') }}">
+</head>
+<body>
+
+    <div class="delete-container">
+        <header>
+            <button class="back-btn" onclick="window.location.href='/todo';">Back</button>
+        </header>
+
+        <section class="warning-message">
+            <p>Deleting this exercise will remove it from your to-do list, but you can add it back at any time. If you want to mark the exercise as completed, simply check the checkbox instead of deleting it.</p>
+        </section>
+
+        <div class="exercise-list">
+            <div class="exercise-list">
+                {% for exercise in exercises %}
+                <div class="exercise-item" id="exercise-{{ exercise.exercise_todo_id }}">
+                    <label>{{ exercise.workout_name }}</label>
+                    <button class="delete-btn" data-id="{{ exercise.exercise_todo_id }}">Delete</button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <script>
+        document.querySelectorAll('.delete-btn').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const exerciseId = this.getAttribute('data-id');
+
+                fetch(`/delete_exercise/${exerciseId}`, {
+                    method: 'DELETE',
+                })
+                .then(response => {
+                    if (response.ok) {
+                        document.getElementById(`exercise-${exerciseId}`).remove();
+                    } else {
+                        alert('Failed to delete the exercise');
+                    }
+                });
+            });
+        });
+    </script>
+
+
+</body>
+</html>

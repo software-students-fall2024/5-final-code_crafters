@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Exercises</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style2.css') }}">
+</head>
+<body>
+
+    <div class="search-container">
+        <header>
+            <button class="back-btn" onclick="window.location.href='/todo';">Back</button>
+        </header>
+
+        <section class="recommendation-message">
+            <p>Here are the exercises matching your search. You can add them to your to-do list by clicking the "Add" button.</p>
+            <p>Feel free to explore different exercises and customize your workout routine to fit your goals. Consistency is key to making progress!</p>
+        </section>
+
+        <div class="exercise-list">
+            {% for exercise in exercises %}
+            <div class="exercise-item">
+                <button class="exercise-btn" onclick="window.location.href='/instructions?exercise_id={{ exercise._id }}'">
+                    {{ exercise.workout_name }}
+                </button>
+                <button class="add-btn" data-id="{{ exercise._id }}">Add</button>
+            </div>
+            {% endfor %}
+        </div>
+        <button class="search-btn" onclick="window.location.href='/search';">Search</button>
+
+    </div>
+    <script>
+        const exercisesLength = {{ exercises_length }};
+    </script>
+
+    <script>
+    document.querySelectorAll('.add-btn').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const exerciseId = this.getAttribute('data-id');
+
+            fetch(`/add_exercise?exercise_id=${exerciseId}`, {
+                method: 'POST',
+            })
+            .then(response => {
+                if (response.ok) {
+                    if (exercisesLength === 1) {
+                        window.location.href = '/todo';
+                    } else {
+                        alert('Exercise added successfully!');
+                    }
+                } else {
+                    alert('Failed to add the exercise.');
+                }
+            });
+        });
+    });
+
+    </script>
+
+</body>
+</html>

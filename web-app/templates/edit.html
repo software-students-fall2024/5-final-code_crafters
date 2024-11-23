@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Exercise</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style1.css') }}">
+</head>
+<body>
+    <div class="exercise-container">
+        <header class="header-container">
+            <button class="back-btn" onclick="window.location.href='/todo';">Back</button>
+            <h1 class="exercise-title">{{ exercise.workout_name }}</h1>
+        </header>
+
+        <p>You can edit or update your workout details. Use voice input to fill in your data!</p>
+        <p>For example, you can say: "Set 15 <b>minutes</b>, 4 <b>groups</b>, and weight of 25 <b>kilograms</b>."</p>
+
+        <section class="more-info">
+            <a href="{{ url_for('instructions', exercise_id=exercise.exercise_id) }}">
+                More Instructions
+            </a>
+        </section>
+
+        <div class="voice-controls">
+            <button id="start-recording-btn">Start Recording</button>
+            <button id="stop-recording-btn" disabled>Stop Recording</button>
+        </div>
+
+        <form id="exercise-form" method="POST" action="/edit">
+            <div class="exercise-data">
+                <div class="exercise-time">
+                    <label for="working_time">Workout Time (Minutes):</label>
+                    <input type="text" name="working_time" id="working_time" 
+                           placeholder="Min" 
+                           value="{{ exercise.working_time if exercise.working_time is not none else '' }}" 
+                           style="display: inline-block; width: 50px;">
+                </div>
+        
+                <label for="reps">Reps/Group:</label>
+                <input type="text" name="reps" id="reps" 
+                       placeholder="_" 
+                       value="{{ exercise.reps if exercise.reps is not none else '' }}">
+        
+                <label for="weight">Weight (Kg):</label>
+                <input type="text" name="weight" id="weight" 
+                       placeholder="_ Kg" 
+                       value="{{ exercise.weight if exercise.weight is not none else '' }}">
+        
+                <div class="exercise-save">
+                    <button class="exercise-save-btn" data-id="{{ exercise.exercise_todo_id }}">Save</button>
+                </div>
+            </div>
+        </form>
+        
+        <footer>
+            <p>All rights reserved. <a href="#">Privacy policy</a></p>
+        </footer>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+
+        document.getElementById('start-recording-btn').addEventListener('click', async () => {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        const formData = new FormData();
+                        formData.append('audio', audioBlob, 'recording.wav');
+
+                        try {
+                            const response = await fetch('/upload-audio', {
+                                method: 'POST',
+                                body: formData,
+                            });
+                            const result = await response.json();
+                            
+                            if (result.transcription) {
+                                
+                                const transcription = result.transcription.toLowerCase();
+
+                                try {
+                                    const saveResponse = await fetch('/upload-transcription', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                        },
+                                        body: JSON.stringify({ content: transcription }),
+                                    });
+                                    const saveResult = await saveResponse.json();
+                                    console.log('Save result:', saveResult);
+                                } catch (saveError) {
+                                    console.error('Error saving transcription:', saveError);
+                                }
+
+                                const timeMatch = transcription.match(/(\d+)\s*minutes?/);
+                                const groupMatch = transcription.match(/(\d+)\s*groups?/);
+                                const weightMatch = transcription.match(/(\d+)\s*(kilograms|kg|pounds|lbs)/);
+
+                                if (timeMatch) {
+                                    document.getElementById('working_time').value = timeMatch[1];
+                                }
+                                if (groupMatch) {
+                                    document.getElementById('reps').value = groupMatch[1];
+                                }
+                                if (weightMatch) {
+                                    document.getElementById('weight').value = weightMatch[1];
+                                }
+                            } else {
+                                alert('No transcription returned.');
+                            }
+                        } catch (error) {
+                            console.error('Error uploading audio:', error);
+                            alert('Failed to upload the audio for transcription.');
+                        }
+
+                        audioChunks = [];
+                    };
+
+                    mediaRecorder.start();
+                    document.getElementById('start-recording-btn').disabled = true;
+                    document.getElementById('stop-recording-btn').disabled = false;
+                } catch (error) {
+                    console.error('Error accessing the microphone:', error);
+                }
+            } else {
+                alert('Your browser does not support audio recording.');
+            }
+        });
+
+        document.getElementById('stop-recording-btn').addEventListener('click', () => {
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+                document.getElementById('start-recording-btn').disabled = false;
+                document.getElementById('stop-recording-btn').disabled = true;
+            }
+        });
+
+        document.getElementById('exercise-form').addEventListener('submit', function(event) {
+            event.preventDefault();  
+            
+            const exercise_todo_id = "{{ exercise.exercise_todo_id }}"; 
+            const formData = new FormData(this);  
+    
+            fetch(`/edit?exercise_todo_id=${exercise_todo_id}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert(data.message);  
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while saving the exercise.');
+            });
+        });
+    </script>
+    
+</body>
+</html>

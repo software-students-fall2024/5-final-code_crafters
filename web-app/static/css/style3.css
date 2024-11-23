@@ -1,0 +1,89 @@
+.login-container, .signup-container {
+    width: 100vw;
+    max-width: 400px;
+    min-width: 300px;
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 0 auto;  
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: auto;
+    min-height: 100vh;
+}
+
+.input-group {
+    margin-bottom: 15px;
+    width: 100%;
+}
+
+.input-group label {
+    font-size: 14px;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.login-btn, .signup-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 16px;
+    border-radius: 5px;
+    width: 100%;
+    text-align: center;
+}
+
+.login-btn:hover, .signup-btn:hover {
+    background-color: #45a049;
+}
+
+.login-footer, .signup-footer {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.login-footer a, .signup-footer a {
+    color: #007BFF;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.login-footer a:hover, .signup-footer a:hover {
+    text-decoration: underline;
+}
+
+.login-header, .signup-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.login-header h1, .signup-header h1 {
+    font-size: 24px;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+@media (max-width: 768px) {
+    .login-container, .signup-container {
+        max-width: 90%;
+    }
+}
+
+.error-message {
+    color: red;
+    font-size: 14px;
+    margin-top: 10px;
+    text-align: center;
+}

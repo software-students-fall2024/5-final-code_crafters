@@ -26,3 +26,21 @@ Replace the contents of the [README.md](./README.md) file with a beautifully-for
 - instructions for how to configure and run all parts of your project for any developer on any platform - these instructions must work!
 - instructions for how to set up any environment variables and import any starter data into the database, as necessary, for the system to operate correctly when run.
 - if there are any "secret" configuration files, such as `.env` or similar files, that are not included in the version control repository, exact instructions for how to create them and what their contents should be must be supplied to the course admins by the due date.
+
+## Todo
+1. 把mongodb从webapp里面拆除来（最好deploy在一个不常用的端口）
+    - app.py 和 test.py
+2. 增加retrive data的function（day， month， week。。。）
+    - 包含数据库连接
+    - 前端内容
+    - test
+----ddl: 11/26
+3. 增加数据可视化的function
+    - 数据处理（或许可以使用ml的api简化流程）
+    - 数据库连接
+    - 前端内容
+    - test
+4. 矫正健身动作/制定健身计划/推荐健身动作。。。。。（待定）
+5. (待定) deployment
+
+ddl：12/4

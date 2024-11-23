@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Page</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style3.css') }}">
+</head>
+<body>
+    <div class="login-container">
+        <header class="login-header">
+            <h1>Login</h1>
+        </header>
+
+        <form id="login-form" method="POST" action="/login">
+            <div class="input-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+
+            <div class="input-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+
+            <div class="login-btn-group">
+                <button type="submit" class="login-btn">Login</button>
+            </div>
+
+            <div class="login-footer">
+                <p>Don't have an account? <a href="/register">Sign up here</a></p>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', function(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(this);
+
+    fetch('/login', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Response received:', data);
+
+        if (data.success) {
+            window.location.href = '/todo'; 
+        } else if (data.message) {
+            alert(data.message);  
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred during login.');
+    });
+});
+
+
+    </script>
+</body>
+</html>

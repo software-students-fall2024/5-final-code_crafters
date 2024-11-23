@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instruction Page</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style1.css') }}">
+</head>
+<body>
+    <div class="exercise-instruct-container">
+        <header class="header-container">
+            <h1 class="instruction-title">{{ exercise.workout_name }} Instruction</h1>
+            <button class="back-btn" onclick="window.history.back();">Back</button>
+        </header>
+
+        <p>You can check out the instructions for {{ exercise.workout_name }}. Please be careful when you work out.</p>
+
+        <section class="exercise-description">
+            <p><Strong>Description:</Strong></p>
+            <p> {{ exercise.description }}
+            </p>  
+        </section>
+
+        <div class="exercise-instruct">
+            <p><Strong>Instruction:</Strong></p>
+            <p> {{ exercise.instruction }}
+            </p>
+        </div>      
+
+        <footer>
+            <p>All rights reserved. <a href="#">Privacy policy</a></p>
+        </footer>
+    </div>
+</body>
+</html>
+

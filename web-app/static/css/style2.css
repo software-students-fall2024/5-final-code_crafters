@@ -1,0 +1,225 @@
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+body {
+    background-color: #f4f4f4;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 0; 
+}
+
+.todo-container, .search-container, .delete-container {
+    width: 100vw; 
+    max-width: 500px;
+    min-width: 300px; 
+    height: auto; 
+    min-height: 100vh; 
+    background-color: white;
+    border: 1px solid #ddd;
+    padding: 20px; 
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+header h1 {
+    font-size: 22px;
+    margin-bottom: 10px;
+    margin-top:30px;
+}
+
+header p {
+    font-size: 14px;
+    color: gray;
+}
+
+.add-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    border-radius: 5px;
+}
+
+.welcome-message, .recommendation-message {
+    margin-bottom: 20px;
+}
+
+.welcome-message p, .recommendation-message p {
+    font-size: 14px;
+    margin-bottom: 10px;
+    line-height: 1.5;
+}
+
+.todo-list, .exercise-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.todo-item, .exercise-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.todo-item input[type="checkbox"], .exercise-item input[type="checkbox"] {
+    margin-right: 10px;
+}
+
+.todo-item label, .exercise-item label {
+    flex-grow: 1;
+    font-size: 16px;
+}
+
+.add-btn {
+    background-color: #4CAF50; 
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    border-radius: 5px;
+}
+
+.delete-all-btn {
+    background-color: rgb(17, 52, 122);
+    color: white;
+    border: none;
+    padding: 10px 20px; 
+    cursor: pointer;
+    font-size: 14px; 
+    border-radius: 5px;
+    margin-top: 20px;
+    display: block;
+    width: 100%;
+    text-align: center;
+}
+.logout-btn {
+    background-color: rgb(161, 43, 51);
+    color: white;
+    border: none;
+    padding: 10px 20px; 
+    cursor: pointer;
+    font-size: 14px; 
+    border-radius: 5px;
+    margin-top: 20px;
+    display: block;
+    width: 100%;
+    text-align: center;
+}
+
+.search-box {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+footer {
+    text-align: center;
+    font-size: 12px;
+    color: gray;
+    margin-top:40px;
+}
+
+footer a {
+    color: gray;
+    text-decoration: none;
+}
+
+.add-todo-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    border-radius: 5px;
+    position: absolute;
+    top: 3vh;
+    right: 5vw;
+}
+
+.task-checkbox {
+    margin-right: 10px;
+}
+
+.task-checkbox:disabled {
+    background-color: #ddd; 
+    cursor: not-allowed;    
+}
+
+.back-btn {
+    background-color: rgb(17, 52, 122);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    border-radius: 5px;
+    position: absolute;
+    top: 3vh;
+    left: 5vw;
+    margin-bottom: 20px;
+}
+
+.delete-btn {
+    background-color: rgb(163, 26, 26);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    border-radius: 5px;
+}
+.search-btn {
+    background-color: rgb(17, 52, 122);
+    color: white;
+    border: none;
+    padding: 10px 20px; 
+    cursor: pointer;
+    font-size: 14px; 
+    border-radius: 5px;
+    margin-top: 20px;
+    display: block;
+    width: 100%;
+    text-align: center;
+}
+
+.exercise-btn {
+    background: none;
+    border: none;
+    color: #007BFF;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline; 
+}
+
+.warning-message, .recommendation-message{
+    margin-top: 60px;
+    margin-bottom: 20px; 
+}
+.exercise-btn:visited {
+    text-decoration: underline; 
+    color: #007BFF;
+}

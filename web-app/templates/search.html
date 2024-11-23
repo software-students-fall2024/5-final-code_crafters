@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Exercises Page</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style1.css') }}">
+
+</head>
+<body>
+
+    <div class="search-container">
+        <header class="header-container">
+            <button class="back-btn" onclick="window.location.href='/todo';">Back</button>
+            <h1 class="search-exercise-title">Search Exercise</h1>
+        </header>
+
+        <section class="search-message">
+            <p>You can search the exercises here.</p>
+        </section>
+
+        <form id="search-form">
+            <input type="text" id="query" name="query" required>
+            <button type="button" class="search-btn" id="search-btn">Search</button>
+            <button id="start-recording-btn">Start Recording</button>
+            <button id="stop-recording-btn" disabled>Stop Recording</button>
+        </form>
+
+        <div class="exercise-list">
+            <p> Below are your search history according to data.</p>
+            {% for exercise in exercises %} 
+            <div class="exercise-item" id="exercise-{{ exercise.exercise_id }}">
+                <label>{{ exercise.workout_name }}</label>
+                <button class="add-btn" data-id="{{ exercise._id }}">Add</button>
+
+            </div>
+            {% endfor %}
+        </div>
+
+        <footer>
+            <p>All rights reserved. <a href="#">Privacy policy</a></p>
+        </footer>
+    </div>
+
+    <script>
+        document.getElementById('search-btn').addEventListener('click', function() {
+            const query = document.getElementById('query').value;
+
+            fetch('/search', {
+                method: 'POST',
+                body: new URLSearchParams({
+                    'query': query
+                })
+            })
+            .then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    return response.json(); 
+                }
+            })
+            .then(data => {
+                if (data && data.message) {
+                    alert(data.message);  
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while searching for the exercises.');
+            });
+        });
+        document.querySelectorAll('.add-btn').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const exerciseId = this.getAttribute('data-id');
+
+                fetch(`/add_exercise?exercise_id=${exerciseId}`, {
+                    method: 'POST',
+                })
+                .then(response => {
+                    if (response.ok) {
+                        alert('Exercise added successfully!');  
+                    } else {
+                        alert('Failed to add the exercise.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while adding the exercise.');
+                });
+            });
+        });
+
+
+        
+    let mediaRecorder;
+    let audioChunks = [];
+
+    // Start recording
+    document.getElementById('start-recording-btn').addEventListener('click', async () => {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const formData = new FormData();
+                    formData.append('audio', audioBlob, 'recording.wav');
+
+                    // Send the audio file to the server
+                    try {
+                        const response = await fetch('/upload-audio', {
+                            method: 'POST',
+                            body: formData,
+                        });
+                        const result = await response.json();
+                        
+                        // 将转录文本填入搜索框
+                        if (result.transcription) {
+                            document.getElementById('query').value = result.transcription;
+                        } else {
+                            alert('No transcription returned');
+                        }
+                    } catch (error) {
+                        console.error('Error uploading audio:', error);
+                        alert('Failed to upload the audio for transcription.');
+                    }
+
+                    // Reset audioChunks for next recording
+                    audioChunks = [];
+                };
+
+                mediaRecorder.start();
+                document.getElementById('start-recording-btn').disabled = true;
+                document.getElementById('stop-recording-btn').disabled = false;
+            } catch (error) {
+                console.error('Error accessing the microphone:', error);
+            }
+        } else {
+            alert('Your browser does not support audio recording.');
+        }
+    });
+
+    // Stop recording
+    document.getElementById('stop-recording-btn').addEventListener('click', () => {
+        if (mediaRecorder) {
+            mediaRecorder.stop();
+            document.getElementById('start-recording-btn').disabled = false;
+            document.getElementById('stop-recording-btn').disabled = true;
+        }
+    });
+    </script>
+</body>
+</html>

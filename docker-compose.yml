@@ -1,0 +1,31 @@
+version: '3'
+
+services:
+  web-app:
+    build:
+      context: ./web-app
+    ports:
+      - "5001:5001"  
+    depends_on:
+      - machine-learning-client  
+    networks:
+      - app-network
+    volumes:
+      - shared-volume:/app/uploads
+
+  machine-learning-client:
+    build:
+      context: ./machine-learning-client
+    ports:
+      - "8081:8080"  
+    networks:
+      - app-network
+    volumes:
+      - shared-volume:/app/uploads
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  shared-volume:

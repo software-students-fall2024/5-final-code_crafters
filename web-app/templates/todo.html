@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To Do List</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style2.css') }}">
+</head>
+<body>
+
+    <div class="todo-container">
+        <header>
+            <h1>Today's Exercise List</h1>
+            <p id="current-date"></p>
+            <button class="add-todo-btn" onclick="window.location.href='/search';">Add</button>
+        </header>
+
+        <section class="welcome-message">
+            <p>Welcome back! Ready to tackle today's exercises? Stay focused and consistent to achieve your fitness goals.
+                Don't forget to start your workout today! Keep pushing forward and remember: consistency is key to progress.</p>
+        </section>
+
+        <div class="todo-list">
+            {% for exercise in exercises %}
+            <div class="todo-item">
+                <input type="checkbox" class="task-checkbox" >
+                <button class="exercise-btn" onclick="window.location.href='/edit?exercise_todo_id={{ exercise.exercise_todo_id }}'">
+                    {{ exercise.workout_name }}
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        <button class="delete-all-btn" onclick="window.location.href='/delete_exercise';">Delete</button>
+        <button class="logout-btn" onclick="window.location.href='/logout';">Log Out</button>
+        <footer>
+            <p>All rights reserved. <a href="#">Privacy policy</a></p>
+        </footer>
+    </div>
+
+    <script>
+        document.querySelectorAll('.task-checkbox').forEach(function(checkbox) {
+            checkbox.addEventListener('change', function() {
+                });
+        });
+        const today = new Date();
+
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const formattedDate = today.toLocaleDateString('en-US', options);
+
+        document.getElementById('current-date').innerText = formattedDate;
+    </script>
+    
+</body>
+
+</html>
