@@ -7,6 +7,12 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style1.css') }}">
 </head>
 <body>
+    <nav class="navbar">
+        <a href="/todo">To Do</a>
+        <a href="/plan">Plan</a>
+        <a href="/user" >User</a>
+    </nav>
+
     <div class="exercise-container">
         <header class="header-container">
             <button class="back-btn" onclick="window.location.href='/todo';">Back</button>
