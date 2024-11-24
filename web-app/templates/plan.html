@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plan Page</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style4.css') }}">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <a href="/todo">To Do</a>
+        <a href="/plan"  class="clickedNav">Plan</a>
+        <a href="/user" >User</a>
+    </nav>
+
+    <!-- Plan Container -->
+    <div class="plan-container">
+        <header class="plan-header">
+            <h1>Week Plan</h1>
+            <p class="current-status">Current Status: Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+            <div class="plan-switch">
+                <button id="week-btn" class="active">Week</button>
+                <button id="month-btn">Month</button>
+            </div>
+        </header>
+
+        <!-- Week Plan Section -->
+        <section id="week-plan" class="plan-section">
+            <div class="navigation">
+                <button class="prev-btn">Previous</button>
+                <button class="next-btn">Next</button>
+            </div>
+            <ul class="week-list">
+                {% for plan in week_plan %}
+                <li>
+                    <span>{{ plan.day }}</span>
+                    <p>To Do List (brief): {{ plan.task }}</p>
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        <!-- Month Plan Section -->
+        <section id="month-plan" class="plan-section hidden">
+            <ul class="month-list">
+                {% for plan in month_plan %}
+                <li>
+                    <span>{{ plan.week }}</span>
+                    <p>Description of the Exercise Plan: {{ plan.description }}</p>
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
+    </div>
+
+    <script>
+        const weekBtn = document.getElementById('week-btn');
+        const monthBtn = document.getElementById('month-btn');
+        const weekPlan = document.getElementById('week-plan');
+        const monthPlan = document.getElementById('month-plan');
+
+        weekBtn.addEventListener('click', () => {
+            weekPlan.classList.remove('hidden');
+            monthPlan.classList.add('hidden');
+            weekBtn.classList.add('active');
+            monthBtn.classList.remove('active');
+        });
+
+        monthBtn.addEventListener('click', () => {
+            weekPlan.classList.add('hidden');
+            monthPlan.classList.remove('hidden');
+            monthBtn.classList.add('active');
+            weekBtn.classList.remove('active');
+        });
+    </script>
+</body>
+</html>

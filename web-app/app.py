@@ -766,5 +766,48 @@ def upload_transcription():
         return jsonify({"error": f"Database error: {str(e)}"}), 500
 
 
+week_plan_data = [
+    {"day": "Mon", "task": "Shoulder"},
+    {"day": "Tue", "task": "Leg"},
+    {"day": "Wed", "task": "Arm"},
+    {"day": "Thu", "task": "Chest"},
+    {"day": "Fri", "task": "Arm"},
+    {"day": "Sat", "task": "Shoulder"},
+    {"day": "Sun", "task": "Cardio"},
+]
+
+month_plan_data = [
+    {"week": "1", "description": "Active Recovery"},
+    {"week": "2", "description": "Upper Body Strength Training"},
+    {"week": "3", "description": "Cardio + Core Strength Training"},
+    {"week": "4", "description": "High-intensity Training"},
+]
+
+@app.route('/plan')
+@login_required
+def get_plan():
+    return render_template('plan.html', week_plan=week_plan_data, month_plan=month_plan_data)
+
+@app.route('/user')
+@login_required
+def user_profile():
+    user_data = {
+        "name": "John Doe",
+        "gender": "Male",
+        "phone": "012-345-6789",
+        "email": "a@gmail.com"
+    }
+    return render_template('user.html', user=user_data)
+
+@app.route('/update')
+@login_required
+def update_profile():
+    return render_template('update.html')
+
+@app.route('/data')
+@login_required
+def check_my_data():
+    return render_template('data.html')
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)

@@ -219,3 +219,34 @@ footer a {
 .exercise-list{
     margin-top:30px;
 }
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: rgb(17, 52, 122);
+    color: white;
+    padding: 10px 10px;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    z-index: 1000;
+}
+
+.navbar > a {
+    flex-grow: 1;
+    text-align: center;
+    color: white;
+    text-decoration: none;
+    padding: 10px 10px;
+    transition: background-color 0.3s ease;
+}
+
+.navbar > a:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.clickedNav {
+    background-color: rgba(255, 255, 255, 0.2);
+}

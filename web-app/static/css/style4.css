@@ -1,0 +1,424 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+body {
+    background-color: #f4f4f4;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 0; 
+}
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: rgb(17, 52, 122);
+    color: white;
+    padding: 10px 10px;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    z-index: 1000;
+}
+
+.navbar > a {
+    flex-grow: 1;
+    text-align: center;
+    color: white;
+    text-decoration: none;
+    padding: 10px 10px;
+    transition: background-color 0.3s ease;
+}
+
+.navbar > a:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.clickedNav {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.plan-container, .user-profile-container, .update-profile-container {
+    width: 100vw; 
+    max-width: 500px;
+    min-width: 300px; 
+    height: auto; 
+    min-height: 100vh; 
+    background-color: white;
+    border: 1px solid #ddd;
+    padding: 20px; 
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding-bottom: 50px;
+}
+
+.plan-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.plan-header h1 {
+    font-size: 24px;
+    color: rgb(17, 52, 122);
+}
+
+.plan-header .current-status {
+    font-size: 14px;
+    color: gray;
+    margin-top: 5px;
+}
+
+.plan-switch button {
+    margin: 10px 5px;
+    padding: 8px 16px;
+    font-size: 14px;
+    border: 1px solid rgb(17, 52, 122);
+    background-color: white;
+    color: rgb(17, 52, 122);
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+.plan-switch button.active {
+    background-color: rgb(17, 52, 122);
+    color: white;
+}
+
+.plan-section {
+    display: block;
+}
+
+.plan-section.hidden {
+    display: none;
+}
+
+.week-list, .month-list {
+    list-style: none;
+    margin-top: 20px;
+    padding: 0;
+}
+
+.week-list li{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.week-list li span{
+    font-weight: bold;
+    color: rgb(17, 52, 122);
+}
+
+.month-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.month-list li span {
+    font-weight: bold;
+    color: rgb(17, 52, 122);
+    margin-right: 20px; 
+}
+
+.month-list li p {
+    flex-grow: 1; 
+    margin-left: 20px;
+}
+
+.profile-header h1 {
+    font-size: 24px;
+    color: rgb(17, 52, 122);
+    margin-bottom: 10px;
+}
+
+.profile-header p {
+    font-size: 14px;
+    color: gray;
+    margin-bottom: 20px;
+}
+
+.portrait-placeholder {
+    width: 100%;
+    max-width: 200px;
+    height: 200px;
+    background-color: #ddd;
+    border: 1px solid #bbb;
+    margin: 0 auto 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 16px;
+    color: gray;
+}
+
+.user-name {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+.personal-info h3 {
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: rgb(17, 52, 122);
+}
+
+.personal-info p {
+    font-size: 14px;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.track-placeholder {
+    width: 100%;
+    max-width: 400px;
+    height: 100px;
+    background-color: #ddd;
+    border: 1px solid #bbb;
+    margin: 20px auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 14px;
+    color: gray;
+    text-align: center;
+}
+
+.profile-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.profile-buttons button {
+    background-color: rgb(17, 52, 122);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.profile-buttons button:hover {
+    background-color: rgba(17, 52, 122, 0.8);
+}
+
+.profile-footer {
+    margin-top: 20px;
+    font-size: 12px;
+    color: gray;
+    text-align: center;
+}
+
+.profile-footer a {
+    color: gray;
+    text-decoration: underline;
+    font-weight: bold;
+}
+
+.profile-header h1 {
+    font-size: 24px;
+    color: rgb(17, 52, 122);
+    margin-bottom: 10px;
+}
+
+.profile-header p {
+    font-size: 14px;
+    color: gray;
+    margin-bottom: 20px;
+}
+
+.logo-placeholder {
+    width: 100%;
+    max-width: 200px;
+    height: 200px;
+    background-color: #ddd;
+    border: 1px solid #bbb;
+    margin: 0 auto 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 16px;
+    color: gray;
+}
+
+.profile-form {
+    width: 100%;
+    margin-top: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.form-group input {
+    width: calc(100% - 10px); 
+    padding: 8px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.form-group input[type="number"]::-webkit-inner-spin-button,
+.form-group input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.match-btn {
+    display: block;
+    width: 100%;
+    max-width: 200px;
+    margin: 0 auto 20px;
+    padding: 10px;
+    font-size: 14px;
+    background-color: rgb(17, 52, 122);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.match-btn:hover {
+    background-color: rgba(17, 52, 122, 0.8);
+}
+
+.form-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.form-buttons button {
+    flex-grow: 1;
+    padding: 10px;
+    font-size: 14px;
+    border: 1px solid rgb(17, 52, 122);
+    background-color: white;
+    color: rgb(17, 52, 122);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.form-buttons button:hover {
+    background-color: rgba(17, 52, 122, 0.2);
+}
+
+.data-container {
+    background-color: #f4f4f4;
+    text-align: center;
+    min-height: 100vh;
+    padding-bottom: 50px;
+}
+
+.tabs {
+    text-align: center; 
+    margin: 20px 0; 
+}
+
+.tab {
+    display: inline-block; 
+    text-align: center;
+    background-color: white;
+    border: 1px solid rgb(17, 52, 122);
+    padding: 10px 20px;
+    margin: 0 10px; 
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.tab.active {
+    background-color: rgb(17, 52, 122);
+    color: white;
+}
+
+.tab:not(.active):hover {
+    background-color: rgba(17, 52, 122, 0.1);
+}
+
+.data-section {
+    text-align: center;
+    width: 100%;
+    max-width: 500px;
+    padding: 20px;
+    margin: 0 auto;
+}
+
+.data-section.hidden {
+    display: none;
+}
+
+.chart-placeholder {
+    width: 100%;
+    max-width: 400px;
+    height: 200px;
+    background-color: #ddd;
+    border: 1px solid #bbb;
+    margin: 20px auto;
+    display: block; 
+    text-align: center; 
+    line-height: 200px;
+    font-size: 16px;
+    color: gray;
+}
+
+.update-fat-rate {
+    margin: 20px 0;
+    text-align: center;
+}
+
+.update-fat-rate input {
+    width: 50px;
+    padding: 5px;
+    font-size: 14px;
+    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    margin-left: 5px;
+}
+
+.table-placeholder {
+    width: 100%;
+    max-width: 400px;
+    height: 150px;
+    background-color: #ddd;
+    border: 1px solid #bbb;
+    margin: 20px auto; /* 居中 */
+    display: inline-block; 
+    text-align: center; 
+    line-height: 150px; 
+    font-size: 14px;
+    color: gray;
+}
