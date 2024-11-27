@@ -59,20 +59,76 @@
         const monthBtn = document.getElementById('month-btn');
         const weekPlan = document.getElementById('week-plan');
         const monthPlan = document.getElementById('month-plan');
-
+        const weekList = document.querySelector('.week-list');
+        const monthList = document.querySelector('.month-list');
+    
+        const prevWeekBtn = document.querySelector('.prev-btn');
+        const nextWeekBtn = document.querySelector('.next-btn');
+    
+        let currentWeekStartDate = new Date();
+        let currentMonth = new Date().toISOString().slice(0, 7);
+    
+        function fetchWeekPlan(startDate) {
+            const start = new Date(startDate);
+            const end = new Date(start);
+            end.setDate(start.getDate() + 6);
+    
+            const startStr = start.toISOString().split('T')[0];
+            const endStr = end.toISOString().split('T')[0];
+    
+            fetch(`/plan/week?start_date=${startStr}&end_date=${endStr}`)
+                .then(response => response.json())
+                .then(data => {
+                    weekList.innerHTML = '';
+                    data.forEach(plan => {
+                        const listItem = document.createElement('li');
+                        listItem.innerHTML = `<span>${plan.day}</span><p>To Do List (brief): ${plan.task}</p>`;
+                        weekList.appendChild(listItem);
+                    });
+                });
+        }
+    
+        function fetchMonthPlan(month) {
+            fetch(`/plan/month?month=${month}`)
+                .then(response => response.json())
+                .then(data => {
+                    monthList.innerHTML = '';
+                    data.forEach(plan => {
+                        const listItem = document.createElement('li');
+                        listItem.innerHTML = `<span>${plan.week}</span><p>Description of the Exercise Plan: ${plan.description}</p>`;
+                        monthList.appendChild(listItem);
+                    });
+                });
+        }
+    
+        prevWeekBtn.addEventListener('click', () => {
+            currentWeekStartDate.setDate(currentWeekStartDate.getDate() - 7);
+            fetchWeekPlan(currentWeekStartDate);
+        });
+    
+        nextWeekBtn.addEventListener('click', () => {
+            currentWeekStartDate.setDate(currentWeekStartDate.getDate() + 7);
+            fetchWeekPlan(currentWeekStartDate);
+        });
+    
         weekBtn.addEventListener('click', () => {
             weekPlan.classList.remove('hidden');
             monthPlan.classList.add('hidden');
             weekBtn.classList.add('active');
             monthBtn.classList.remove('active');
+            fetchWeekPlan(currentWeekStartDate);
         });
-
+    
         monthBtn.addEventListener('click', () => {
             weekPlan.classList.add('hidden');
             monthPlan.classList.remove('hidden');
             monthBtn.classList.add('active');
             weekBtn.classList.remove('active');
+            fetchMonthPlan(currentMonth);
         });
+    
+        fetchWeekPlan(currentWeekStartDate);
+        fetchMonthPlan(currentMonth);
     </script>
 </body>
 </html>
