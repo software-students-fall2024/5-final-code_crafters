@@ -6,7 +6,7 @@ exercise management, and integration with a speech-to-text service for voice com
 import os
 import re
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import Flask, request, redirect, url_for, render_template, jsonify, session
 from dotenv import load_dotenv
@@ -786,7 +786,40 @@ month_plan_data = [
 @app.route('/plan')
 @login_required
 def get_plan():
+    week_plan_data = get_week_plan()
+    month_plan_data = get_month_plan()
     return render_template('plan.html', week_plan=week_plan_data, month_plan=month_plan_data)
+
+@app.route('/plan/week')
+def get_week_plan():
+    current_date = datetime.utcnow()
+    start_of_week = current_date - timedelta(days=current_date.weekday())
+    end_of_week = start_of_week + timedelta(days=6) 
+
+    week_plan_data = list(db.week_plan.find({
+        "time": {
+            "$gte": start_of_week,
+            "$lt": end_of_week + timedelta(days=1) 
+        }
+    }, {"user_id": current_user.id})) 
+
+    return jsonify(week_plan_data)
+
+@app.route('/plan/month')
+def get_month_plan():
+    current_date = datetime.utcnow()
+    start_of_month = current_date.replace(day=1)
+    next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+    end_of_month = next_month - timedelta(days=1)
+
+    month_plan_data = list(db.month_plan.find({
+        "time": {
+            "$gte": start_of_month,
+            "$lt": end_of_month + timedelta(days=1)
+        }
+    }, {"user_id": current_user.id})) 
+
+    return jsonify(month_plan_data)
 
 @app.route('/user')
 @login_required
