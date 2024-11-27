@@ -6,7 +6,7 @@ exercise management, and integration with a speech-to-text service for voice com
 import os
 import re
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import Flask, request, redirect, url_for, render_template, jsonify, session
 from dotenv import load_dotenv
@@ -783,10 +783,106 @@ month_plan_data = [
     {"week": "4", "description": "High-intensity Training"},
 ]
 
+'''
 @app.route('/plan')
 @login_required
 def get_plan():
+    week_plan_data = get_week_plan()
+    month_plan_data = get_month_plan()
     return render_template('plan.html', week_plan=week_plan_data, month_plan=month_plan_data)
+
+@app.route('/plan/week')
+@login_required
+def get_week_plan():
+    current_date = datetime.utcnow()
+    start_of_week = current_date - timedelta(days=current_date.weekday())
+    end_of_week = start_of_week + timedelta(days=6) 
+
+    week_plan_data = list(db.week_plan.find({
+        "time": {
+            "$gte": start_of_week,
+            "$lt": end_of_week + timedelta(days=1) 
+        }
+    }, {"user_id": current_user.id})) 
+
+    return jsonify(week_plan_data)
+
+@app.route('/plan/month')
+@login_required
+def get_month_plan():
+    current_date = datetime.utcnow()
+    start_of_month = current_date.replace(day=1)
+    next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+    end_of_month = next_month - timedelta(days=1)
+
+    month_plan_data = list(db.month_plan.find({
+        "time": {
+            "$gte": start_of_month,
+            "$lt": end_of_month + timedelta(days=1)
+        }
+    }, {"user_id": current_user.id})) 
+
+    return jsonify(month_plan_data)
+'''
+
+@app.route('/plan', methods=['GET'])
+@login_required
+def get_plan():
+    current_date = datetime.utcnow()
+    start_of_week = current_date - timedelta(days=current_date.weekday())
+    end_of_week = start_of_week + timedelta(days=6)
+    start_of_month = current_date.replace(day=1)
+    next_month = (start_of_month.replace(day=28) + timedelta(days=4)).replace(day=1)
+    end_of_month = next_month - timedelta(days=1)
+
+    week_plan_data = list(db.week_plan.find({
+        "time": {"$gte": start_of_week, "$lt": end_of_week + timedelta(days=1)},
+        "user_id": current_user.id
+    }))
+    month_plan_data = list(db.month_plan.find({
+        "time": {"$gte": start_of_month, "$lt": end_of_month + timedelta(days=1)},
+        "user_id": current_user.id
+    }))
+
+    return render_template('plan.html', week_plan=week_plan_data, month_plan=month_plan_data)
+
+@app.route('/plan/week', methods=['GET'])
+@login_required
+def get_week_plan():
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+    
+    if not start_date or not end_date:
+        return jsonify({"error": "start_date and end_date are required!"}), 400
+
+    start_date = datetime.strptime(start_date, "%Y-%m-%d")
+    end_date = datetime.strptime(end_date, "%Y-%m-%d")
+
+    week_plan_data = list(db.week_plan.find({
+        "time": {"$gte": start_date, "$lt": end_date + timedelta(days=1)},
+        "user_id": current_user.id
+    }))
+
+    return jsonify(week_plan_data)
+
+@app.route('/plan/month', methods=['GET'])
+@login_required
+def get_month_plan():
+    month = request.args.get("month")
+    
+    if not month:
+        return jsonify({"error": "month is required!"}), 400
+
+    start_of_month = datetime.strptime(month + "-01", "%Y-%m-%d")
+    next_month = (start_of_month.replace(day=28) + timedelta(days=4)).replace(day=1)
+    end_of_month = next_month - timedelta(days=1)
+
+    month_plan_data = list(db.month_plan.find({
+        "time": {"$gte": start_of_month, "$lt": end_of_month + timedelta(days=1)},
+        "user_id": current_user.id
+    }))
+
+    return jsonify(month_plan_data)
 
 @app.route('/user')
 @login_required
