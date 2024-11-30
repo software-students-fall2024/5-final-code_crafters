@@ -835,11 +835,11 @@ def get_plan():
     next_month = (start_of_month.replace(day=28) + timedelta(days=4)).replace(day=1)
     end_of_month = next_month - timedelta(days=1)
 
-    week_plan_data = list(db.week_plan.find({
+    week_plan_data = list(todo_collection.find({
         "time": {"$gte": start_of_week, "$lt": end_of_week + timedelta(days=1)},
         "user_id": current_user.id
     }))
-    month_plan_data = list(db.month_plan.find({
+    month_plan_data = list(todo_collection.find({
         "time": {"$gte": start_of_month, "$lt": end_of_month + timedelta(days=1)},
         "user_id": current_user.id
     }))
@@ -858,7 +858,7 @@ def get_week_plan():
     start_date = datetime.strptime(start_date, "%Y-%m-%d")
     end_date = datetime.strptime(end_date, "%Y-%m-%d")
 
-    week_plan_data = list(db.week_plan.find({
+    week_plan_data = list(todo_collection.find({
         "time": {"$gte": start_date, "$lt": end_date + timedelta(days=1)},
         "user_id": current_user.id
     }))
@@ -877,7 +877,7 @@ def get_month_plan():
     next_month = (start_of_month.replace(day=28) + timedelta(days=4)).replace(day=1)
     end_of_month = next_month - timedelta(days=1)
 
-    month_plan_data = list(db.month_plan.find({
+    month_plan_data = list(todo_collection.find({
         "time": {"$gte": start_of_month, "$lt": end_of_month + timedelta(days=1)},
         "user_id": current_user.id
     }))
