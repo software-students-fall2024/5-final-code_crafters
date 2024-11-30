@@ -5,27 +5,58 @@ services:
     build:
       context: ./web-app
     ports:
-      - "5001:5001"  
+      - "5001:5001"
     depends_on:
-      - machine-learning-client  
+      - db-service
+      - machine-learning-client
     networks:
       - app-network
     volumes:
       - shared-volume:/app/uploads
+    env_file:  
+      - ./web-app/.env
+
+  db-service:
+    build:
+      context: ./db-service  
+    ports:
+      - "5112:5112"
+    networks:
+      - app-network
+    volumes:
+      - shared-volume:/app/uploads
+    env_file:  
+      - ./db-service/.env
+    depends_on:
+      - mongo
 
   machine-learning-client:
     build:
       context: ./machine-learning-client
     ports:
-      - "8081:8080"  
+      - "8081:8080"
     networks:
       - app-network
     volumes:
       - shared-volume:/app/uploads
+    env_file:  
+      - ./machine-learning-client/.env
+
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    networks:
+      - app-network
+    volumes:
+      - mongo-data:/data/db
+    environment: 
+      MONGO_INITDB_DATABASE: fitness_db  
+    restart: always
 
 networks:
   app-network:
-    driver: bridge
 
 volumes:
   shared-volume:
+  mongo-data:
