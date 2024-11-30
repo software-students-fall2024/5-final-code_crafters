@@ -5,23 +5,20 @@ from pymongo import MongoClient
 from bson import ObjectId
 import certifi
 from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 load_dotenv()
 
-# MongoDB connection
 mongo_uri = os.getenv("MONGO_URI")
 client = MongoClient(mongo_uri, tls=True, tlsCAFile=certifi.where())
 db = client["fitness_db"]
 
-# Collections
 todo_collection = db["todo"]
 exercises_collection = db["exercises"]
 users_collection = db["users"]
 search_history_collection = db["search_history"]
 edit_transcription_collection = db["edit_transcription"]
-
-# User Endpoints
 
 @app.route("/users/get/<user_id>", methods=["GET"])
 def get_user(user_id):
@@ -33,43 +30,59 @@ def get_user(user_id):
 
 @app.route("/users/create", methods=["POST"])
 def create_user():
-    data = request.json
-    username = data.get("username")
-    password = data.get("password")
+    try:
+        data = request.json
+        username = data.get("username")
+        password = data.get("password")
 
-    if not username or not password:
-        return jsonify({"error": "Username and password are required!"}), 400
+        if not username or not password:
+            return jsonify({"message": "Username and password are required!"}), 400
 
-    if users_collection.find_one({"username": username}):
-        return jsonify({"error": "Username already exists!"}), 400
+        if users_collection.find_one({"username": username}):
+            return jsonify({"message": "Username already exists!"}), 400
 
-    user_id = users_collection.insert_one(data).inserted_id
-    todo_collection.insert_one(
-        {"user_id": str(user_id), "date": datetime.utcnow(), "todo": []}
-    )
-    return jsonify({"user_id": str(user_id)}), 200
+        hashed_password = generate_password_hash(password, method="pbkdf2:sha256")
+        user_data = {"username": username, "password": hashed_password}
+
+        user_id = users_collection.insert_one(user_data).inserted_id
+        print(f"user id is :", str(user_id))
+        todo_collection.insert_one(
+            {"user_id": str(user_id), "date": datetime.utcnow(), "todo": []}
+        )
+        return jsonify({"user_id": str(user_id)}), 200
+
+    except Exception as e:
+        print(f"Error creating user: {e}")
+        return jsonify({"message": "Internal server error"}), 500
 
 @app.route("/users/auth", methods=["POST"])
 def authenticate_user():
     data = request.json
     username = data.get("username")
-    if not username:
-        return jsonify({"error": "Username is required"}), 400
+    password = data.get("password") 
+
+    if not username or not password:
+        return jsonify({"error": "Username and password are required"}), 400
 
     user = users_collection.find_one({"username": username})
-    if user:
+    if user and check_password_hash(user["password"], password):
         user["_id"] = str(user["_id"])
         return jsonify(user), 200
-    return jsonify({"error": "User not found"}), 404
+    return jsonify({"error": "Invalid username or password"}), 401
 
-# To-Do List Endpoints
-
-@app.route("/todo/get/<user_id>", methods=["GET"])
+@app.route("/todo/get/<string:user_id>", methods=["GET"])
 def get_todo(user_id):
-    todo = todo_collection.find_one({"user_id": user_id})
-    if todo:
-        todo["_id"] = str(todo["_id"])
-        return jsonify(todo), 200
+    """Fetch user's todo list by user_id."""
+    todo_data = todo_collection.find_one({"user_id": user_id})
+    if todo_data:
+        todo_data["_id"] = str(todo_data["_id"])
+        
+        for item in todo_data.get("todo", []):
+            item["exercise_todo_id"] = int(item["exercise_todo_id"])
+            item["exercise_id"] = str(item["exercise_id"])
+
+        return jsonify(todo_data), 200
+
     return jsonify({"error": "Todo not found"}), 404
 
 @app.route("/todo/add", methods=["POST"])
@@ -119,8 +132,6 @@ def get_todo_item(user_id, exercise_todo_id):
             if item.get("exercise_todo_id") == exercise_todo_id:
                 return jsonify(item), 200
     return jsonify({"error": "Todo item not found"}), 404
-
-# Exercise Endpoints
 
 @app.route("/exercises/search", methods=["POST"])
 def search_exercises():
@@ -184,8 +195,6 @@ def get_search_history(user_id):
         {"user_id": user_id}
     ).sort("time", -1)
     return jsonify([{**h, "_id": str(h["_id"])} for h in history]), 200
-
-# Transcription Endpoints
 
 @app.route("/transcriptions/add", methods=["POST"])
 def add_transcription():

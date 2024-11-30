@@ -46,18 +46,19 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    window.location.href = '/login';
-                    alert(data.message);
-                } else{
-                    alert(data.message);
+                    alert(data.message); // 显示成功消息
+                    window.location.href = data.redirect_url; // 自动跳转到 /todo
+                } else {
+                    alert(data.message); // 显示错误消息
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('An error occurred during signup.');
+                alert('An error occurred during registration.');
             });
         });
     </script>
+    
     
 </body>
 </html>

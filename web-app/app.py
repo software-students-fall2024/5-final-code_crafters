@@ -89,14 +89,16 @@ def get_todo():
     """Retrieve the user's to-do list from the db-service."""
     try:
         response = requests.get(f"{DB_SERVICE_URL}/todo/get/{current_user.id}")
+        print(f"DEBUG: Response status: {response.status_code}, Body: {response.text}")
         if response.status_code == 200:
             todo_data = response.json()
             return todo_data.get("todo", [])
-        return []
+        print(f"Error fetching todo: {response.status_code}, {response.text}")
+        return [] 
     except requests.RequestException as e:
         print(f"Error getting todo: {e}")
-        return []
-
+        return []  
+ 
 def delete_todo_api(exercise_todo_id: int):
     """Delete a to-do item via the db-service API."""
     try:
@@ -253,66 +255,56 @@ def login_page():
 
 @app.route("/register", methods=["POST"])
 def register():
-    """Handles user registration."""
+    """Handles user registration and logs in the user upon success."""
     username = request.form.get("username")
     password = request.form.get("password")
 
     if not username or not password:
-        return jsonify({"message": "Username and password are required!"}), 400
+        return jsonify({"success": False, "message": "Username and password are required!"}), 400
 
-    # Check if user exists via db-service
-    try:
-        response = requests.post(
-            f"{DB_SERVICE_URL}/users/auth",
-            json={"username": username}
-        )
-        if response.status_code == 200:
-            return jsonify({"message": "Username already exists!"}), 400
-    except requests.RequestException as e:
-        print(f"Error checking user existence: {e}")
-
-    hashed_password = generate_password_hash(password, method="pbkdf2:sha256")
-    user_data = {"username": username, "password": hashed_password}
-
-    # Create user via db-service
     try:
         response = requests.post(
             f"{DB_SERVICE_URL}/users/create",
-            json=user_data
+            json={"username": username, "password": password}
         )
+
         if response.status_code == 200:
-            return jsonify({"message": "Registration successful! Please log in.", "success": True}), 200
-        else:
-            return jsonify({"message": "Registration failed!"}), 400
+            user_data = response.json()
+            if "user_id" in user_data:
+                user = User(
+                    user_id=user_data["user_id"],
+                    username=username
+                )
+                login_user(user)  
+
+                return jsonify({"success": True, "message": "Register successful!", "redirect_url": "/todo"}), 200
+
+        return jsonify({"success": False, "message": response.json().get("message", "Registration failed!")}), 400
+
     except requests.RequestException as e:
-        print(f"Error creating user: {e}")
-        return jsonify({"message": "Registration failed!"}), 400
+        print(f"Error communicating with database service: {e}")
+        return jsonify({"success": False, "message": "Error communicating with database service"}), 500
 
 @app.route("/login", methods=["POST"])
 def login():
     try:
-        # 获取前端提交的表单数据
         username = request.form.get("username")
         password = request.form.get("password")
         print(f"DEBUG: Received username={username}, password={password}")
 
-        # 调用 db-service 验证用户
         response = requests.post(
             f"{DB_SERVICE_URL}/users/auth",
-            json={"username": username}
+            json={"username": username, "password": password}
         )
         print(f"DEBUG: db-service response: {response.status_code}, {response.json()}")
 
-        # 检查 db-service 的响应
         if response.status_code == 200:
             user_data = response.json()
-            # 检查密码哈希
-            if check_password_hash(user_data["password"], password):
-                print("DEBUG: Password match successful")
-                return jsonify({"message": "Login successful!", "success": True}), 200
-            else:
-                print("DEBUG: Password mismatch")
-                return jsonify({"message": "Invalid username or password!", "success": False}), 401
+            user = User(
+                user_id=user_data["_id"], 
+                username=user_data["username"]            )
+            login_user(user)
+            return jsonify({"message": "Login successful!", "success": True}), 200
         else:
             print("DEBUG: db-service returned non-200 status code")
             return jsonify({"message": "Invalid username or password!", "success": False}), 401
@@ -320,12 +312,8 @@ def login():
     except Exception as e:
         import traceback
         print(f"DEBUG: Exception occurred: {e}")
-        print(traceback.format_exc())  # 打印完整堆栈信息
+        print(traceback.format_exc())  
         return jsonify({"message": "Login failed due to internal error!"}), 500
-
-
-
-
 
 @app.route("/logout")
 @login_required
