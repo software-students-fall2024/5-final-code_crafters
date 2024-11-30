@@ -784,48 +784,6 @@ month_plan_data = [
     {"week": "4", "description": "High-intensity Training"},
 ]
 
-'''
-@app.route('/plan')
-@login_required
-def get_plan():
-    week_plan_data = get_week_plan()
-    month_plan_data = get_month_plan()
-    return render_template('plan.html', week_plan=week_plan_data, month_plan=month_plan_data)
-
-@app.route('/plan/week')
-@login_required
-def get_week_plan():
-    current_date = datetime.utcnow()
-    start_of_week = current_date - timedelta(days=current_date.weekday())
-    end_of_week = start_of_week + timedelta(days=6) 
-
-    week_plan_data = list(db.week_plan.find({
-        "time": {
-            "$gte": start_of_week,
-            "$lt": end_of_week + timedelta(days=1) 
-        }
-    }, {"user_id": current_user.id})) 
-
-    return jsonify(week_plan_data)
-
-@app.route('/plan/month')
-@login_required
-def get_month_plan():
-    current_date = datetime.utcnow()
-    start_of_month = current_date.replace(day=1)
-    next_month = (current_date.replace(day=28) + timedelta(days=4)).replace(day=1)
-    end_of_month = next_month - timedelta(days=1)
-
-    month_plan_data = list(db.month_plan.find({
-        "time": {
-            "$gte": start_of_month,
-            "$lt": end_of_month + timedelta(days=1)
-        }
-    }, {"user_id": current_user.id})) 
-
-    return jsonify(month_plan_data)
-'''
-
 @app.route('/plan', methods=['GET'])
 @login_required
 def get_plan():
@@ -836,14 +794,30 @@ def get_plan():
     next_month = (start_of_month.replace(day=28) + timedelta(days=4)).replace(day=1)
     end_of_month = next_month - timedelta(days=1)
 
-    week_plan_data = list(todo_collection.find({
-        "time": {"$gte": start_of_week, "$lt": end_of_week + timedelta(days=1)},
-        "user_id": current_user.id
-    }))
-    month_plan_data = list(todo_collection.find({
-        "time": {"$gte": start_of_month, "$lt": end_of_month + timedelta(days=1)},
-        "user_id": current_user.id
-    }))
+    week_plan_data = {}
+    for day in range(7):
+        day_date = start_of_week + timedelta(days=day)
+        day_data = list(todo_collection.find({
+            "time": {"$gte": day_date, "$lt": day_date + timedelta(days=1)},
+            "user_id": current_user.id
+        }, {"workout_name": 1, "_id": 0}).limit(3))
+        week_plan_data[day_date.strftime("%Y-%m-%d")] = day_data
+
+    month_plan_data = {}
+    for week_start in range(0, (end_of_month - start_of_month).days + 1, 7):
+        week_start_date = start_of_month + timedelta(days=week_start)
+        week_end_date = week_start_date + timedelta(days=6)
+        week_data = list(todo_collection.find({
+            "time": {"$gte": week_start_date, "$lt": week_end_date + timedelta(days=1)},
+            "user_id": current_user.id
+        }, {"workout_name": 1, "_id": 0}).limit(3)) 
+
+        if week_data:
+            workout_names = [item['workout_name'] for item in week_data]
+            most_frequent_workout = max(set(workout_names), key=workout_names.count)
+            month_plan_data[week_start_date.strftime("%Y-%m-%d")] = most_frequent_workout
+        else:
+            month_plan_data[week_start_date.strftime("%Y-%m-%d")] = None
 
     return render_template('plan.html', week_plan=week_plan_data, month_plan=month_plan_data)
 
@@ -859,10 +833,15 @@ def get_week_plan():
     start_date = datetime.strptime(start_date, "%Y-%m-%d")
     end_date = datetime.strptime(end_date, "%Y-%m-%d")
 
-    week_plan_data = list(todo_collection.find({
-        "time": {"$gte": start_date, "$lt": end_date + timedelta(days=1)},
-        "user_id": current_user.id
-    }))
+    week_plan_data = {}
+    current_date = start_date
+    while current_date <= end_date:
+        day_data = list(todo_collection.find({
+            "time": {"$gte": current_date, "$lt": current_date + timedelta(days=1)},
+            "user_id": current_user.id
+        }, {"workout_name": 1, "_id": 0}).limit(3))
+        week_plan_data[current_date.strftime("%Y-%m-%d")] = day_data
+        current_date += timedelta(days=1)
 
     return jsonify(week_plan_data)
 
@@ -878,12 +857,83 @@ def get_month_plan():
     next_month = (start_of_month.replace(day=28) + timedelta(days=4)).replace(day=1)
     end_of_month = next_month - timedelta(days=1)
 
-    month_plan_data = list(todo_collection.find({
-        "time": {"$gte": start_of_month, "$lt": end_of_month + timedelta(days=1)},
-        "user_id": current_user.id
-    }))
+    month_plan_data = {}
+    for week_start in range(0, (end_of_month - start_of_month).days + 1, 7):
+        week_start_date = start_of_month + timedelta(days=week_start)
+        week_end_date = week_start_date + timedelta(days=6)
+        week_data = list(todo_collection.find({
+            "time": {"$gte": week_start_date, "$lt": week_end_date + timedelta(days=1)},
+            "user_id": current_user.id
+        }, {"workout_name": 1, "_id": 0}).limit(3)) 
+
+        if week_data:
+            workout_names = [item['workout_name'] for item in week_data]
+            most_frequent_workout = max(set(workout_names), key=workout_names.count)
+            month_plan_data[week_start_date.strftime("%Y-%m-%d")] = most_frequent_workout
+        else:
+            month_plan_data[week_start_date.strftime("%Y-%m-%d")] = None
 
     return jsonify(month_plan_data)
+
+
+# @app.route('/plan', methods=['GET'])
+# @login_required
+# def get_plan():
+#     current_date = datetime.utcnow()
+#     start_of_week = current_date - timedelta(days=current_date.weekday())
+#     end_of_week = start_of_week + timedelta(days=6)
+#     start_of_month = current_date.replace(day=1)
+#     next_month = (start_of_month.replace(day=28) + timedelta(days=4)).replace(day=1)
+#     end_of_month = next_month - timedelta(days=1)
+
+#     week_plan_data = list(todo_collection.find({
+#         "time": {"$gte": start_of_week, "$lt": end_of_week + timedelta(days=1)},
+#         "user_id": current_user.id
+#     }))
+#     month_plan_data = list(todo_collection.find({
+#         "time": {"$gte": start_of_month, "$lt": end_of_month + timedelta(days=1)},
+#         "user_id": current_user.id
+#     }))
+
+#     return render_template('plan.html', week_plan=week_plan_data, month_plan=month_plan_data)
+
+# @app.route('/plan/week', methods=['GET'])
+# @login_required
+# def get_week_plan():
+#     start_date = request.args.get("start_date")
+#     end_date = request.args.get("end_date")
+    
+#     if not start_date or not end_date:
+#         return jsonify({"error": "start_date and end_date are required!"}), 400
+
+#     start_date = datetime.strptime(start_date, "%Y-%m-%d")
+#     end_date = datetime.strptime(end_date, "%Y-%m-%d")
+
+#     week_plan_data = list(todo_collection.find({
+#         "time": {"$gte": start_date, "$lt": end_date + timedelta(days=1)},
+#         "user_id": current_user.id
+#     }))
+
+#     return jsonify(week_plan_data)
+
+# @app.route('/plan/month', methods=['GET'])
+# @login_required
+# def get_month_plan():
+#     month = request.args.get("month")
+    
+#     if not month:
+#         return jsonify({"error": "month is required!"}), 400
+
+#     start_of_month = datetime.strptime(month + "-01", "%Y-%m-%d")
+#     next_month = (start_of_month.replace(day=28) + timedelta(days=4)).replace(day=1)
+#     end_of_month = next_month - timedelta(days=1)
+
+#     month_plan_data = list(todo_collection.find({
+#         "time": {"$gte": start_of_month, "$lt": end_of_month + timedelta(days=1)},
+#         "user_id": current_user.id
+#     }))
+
+#     return jsonify(month_plan_data)
 
 @app.route('/user')
 @login_required
