@@ -179,6 +179,44 @@ def get_todo():
         return todo_list["todo"]
     return []
 
+def get_today_todo():
+    """
+    Retrieves today's To-Do list for the logged-in user.
+    """
+    try:
+        todo_list = todo_collection.find_one({"user_id": current_user.id})
+        print(f"DEBUG: Retrieved todo_list: {todo_list}")
+
+        if not todo_list or "todo" not in todo_list:
+            print("DEBUG: No todo list or 'todo' key not found.")
+            return []
+
+        today = datetime.utcnow().date()
+        print(f"DEBUG: Today's date: {today}")
+
+        today_todo = []
+        for item in todo_list["todo"]:
+            if "time" in item:
+                if isinstance(item["time"], datetime):
+                    item_date = item["time"].date()
+                elif isinstance(item["time"], str):  
+                    item_date = datetime.strptime(item["date"], "%Y-%m-%d").date()
+                else:
+                    print(f"DEBUG: Unknown date format for item: {item}")
+                    continue 
+
+                print(f"DEBUG: Checking item_date: {item_date} for item: {item}")
+                if item_date == today:
+                    today_todo.append(item)
+        print(f"DEBUG: Today's To-Do: {today_todo}")
+        return today_todo
+
+    except Exception as e:
+        print(f"Error retrieving today's To-Do list: {e}")
+        return []
+
+
+
 
 def delete_todo(exercise_todo_id: int):
     """
@@ -481,7 +519,8 @@ def todo():
     """
     Displays the user's To-Do list with all the exercises and their details.
     """
-    exercises = get_todo()
+    exercises = get_today_todo()
+    print(f"DEBUG: Exercises to render: {exercises}")
     return render_template("todo.html", exercises=exercises)
 
 
@@ -491,7 +530,7 @@ def delete_exercise():
     """
     Renders a page to allow the user to select and delete exercises from the To-Do list.
     """
-    exercises = get_todo()
+    exercises = get_today_todo()
     return render_template("delete.html", exercises=exercises)
 
 
