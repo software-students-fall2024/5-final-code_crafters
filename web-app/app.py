@@ -888,13 +888,19 @@ def get_month_plan():
 @app.route('/user')
 @login_required
 def user_profile():
-    user_data = {
-        "name": "John Doe",
-        "gender": "Male",
-        "phone": "012-345-6789",
-        "email": "a@gmail.com"
-    }
-    return render_template('user.html', user=user_data)
+    """
+    Retrieves the current user's data from the database and displays it.
+    """
+    user_id = current_user.id
+
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    user["_id"] = str(user["_id"])
+
+    return render_template('user.html', user=user)
 
 @app.route('/update')
 @login_required
@@ -905,6 +911,125 @@ def update_profile():
 @login_required
 def check_my_data():
     return render_template('data.html')
+
+def get_user_by_id(user_id):
+    """
+    从数据库中通过用户 ID 获取用户信息。
+    """
+    try:
+        return users_collection.find_one({"_id": ObjectId(user_id)})
+    except PyMongoError as e:
+        print(f"Error retrieving user: {e}")
+        return None
+
+
+def update_user_by_id(user_id, update_fields):
+    """
+    根据用户 ID 更新用户数据。
+    """
+    try:
+        result = users_collection.update_one(
+            {"_id": ObjectId(user_id)}, {"$set": update_fields}
+        )
+        return result.modified_count > 0  
+    except PyMongoError as e:
+        print(f"Error updating user: {e}")
+        return False
+
+@app.route('/save-profile', methods=['POST'])
+@login_required
+def save_profile():
+    """
+    更新当前用户的个人资料。
+    """
+    data = request.json 
+
+    if not data:
+        return jsonify({"error": "Invalid input"}), 400
+
+    user_id = current_user.id  
+    user = get_user_by_id(user_id)  
+
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    allowed_fields = [
+        "name",
+        "sex",
+        "height",
+        "weight",
+        "goal_weight",
+        "fat_rate",
+        "goal_fat_rate",
+        "additional_notes",
+    ]
+    update_fields = {key: value for key, value in data.items() if key in allowed_fields}
+
+    if not update_fields:
+        return jsonify({"error": "No valid fields to update"}), 400
+
+    success = update_user_by_id(user_id, update_fields)
+
+    if not success:
+        return jsonify({"error": "Failed to update profile"}), 500
+
+    return jsonify({"message": "User profile updated successfully.", "updated_data": update_fields}), 200
+
+
+@app.route('/api/generate-weekly-plan', methods=['POST'])
+@login_required
+def generate_weekly_plan():
+    """
+    从当前用户数据生成周计划，转发到 ML Client 处理
+    """
+    try:
+        user_id = current_user.id
+        user = users_collection.find_one({"_id": ObjectId(user_id)})
+
+        if not user:
+            return jsonify({"success": False, "message": "User not found"}), 404
+
+        all_exercises = get_all_exercises()
+        all_workouts = [exercise["workout_name"] for exercise in all_exercises if "workout_name" in exercise]
+        
+        user_info = {
+            "workout": all_workouts,
+            "user_id": str(user_id),
+            "sex": user.get("sex"),
+            "height": user.get("height"),
+            "weight": user.get("weight"),
+            "goal_weight": user.get("goal_weight"),
+            "fat_rate": user.get("fat_rate"),
+            "goal_fat_rate": user.get("goal_fat_rate"),
+            "additional_note": user.get("additional_note", ""),
+        }
+
+        response = requests.post("http://ml_client:5000/generate-weekly-plan", json=user_info, timeout=10)
+
+        if response.status_code == 200:
+            ml_response = response.json()
+            return jsonify({"success": True, "plan": ml_response.get("plan")}), 200
+        else:
+            return jsonify({"success": False, "message": "Failed to generate plan"}), 500
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error communicating with ML Client: {e}")
+        return jsonify({"success": False, "message": "Error communicating with ML Client"}), 500
+
+    except Exception as e:
+        print(f"Error generating plan: {e}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
+
+def get_all_exercises():
+    """
+    Retrieves all exercise names from the database.
+    """
+    try:
+        exercises = exercises_collection.find({}, {"workout_name": 1, "_id": 0})
+        return [exercise["workout_name"] for exercise in exercises]
+    except Exception as e:
+        print(f"Error retrieving exercises: {e}")
+        return []
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)
