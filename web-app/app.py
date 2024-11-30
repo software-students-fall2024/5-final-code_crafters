@@ -29,7 +29,7 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 # URL of your db-service
-DB_SERVICE_URL = "http://localhost:5112"  # Adjust the port if necessary
+DB_SERVICE_URL = "http://db-service:5112/"
 
 login_manager = LoginManager()
 login_manager.init_app(app)

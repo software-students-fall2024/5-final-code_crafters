@@ -216,4 +216,4 @@ def add_transcription():
     return jsonify({"error": "Failed to save transcription"}), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5112)
+    app.run(host="0.0.0.0", port=5112,debug=True)
