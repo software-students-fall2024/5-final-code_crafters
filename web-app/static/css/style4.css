@@ -422,3 +422,45 @@ body {
     font-size: 14px;
     color: gray;
 }
+
+.form-group {
+    display: flex; 
+    gap: 5px; 
+}
+
+.form-group label {
+    width: 30%; 
+    max-width: 30%; 
+    display: block; 
+}
+
+.form-group input {
+    width: 60%; 
+    max-width: 60%; 
+    box-sizing: border-box; 
+    display: block; 
+}
+
+#additional-note {
+    width: 100%; 
+    height: 120px;
+    box-sizing: border-box;
+    resize: vertical;
+    line-height: 1.5; 
+    font-size: 14px;
+    padding:5px;
+}
+
+.back-btn {
+    background-color: rgb(17, 52, 122);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    border-radius: 5px;
+    position: absolute;
+    top: 3vh;
+    left: 5vw;
+    margin-bottom: 20px;
+}

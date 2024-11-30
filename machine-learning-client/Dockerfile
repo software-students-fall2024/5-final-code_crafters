@@ -9,4 +9,4 @@ RUN pip install pipenv
 COPY Pipfile Pipfile.lock /app/
 RUN pipenv install --system --deploy
 
-CMD ["python", "speech_to_text.py"]
+CMD ["python", "communication.py"]

@@ -7,69 +7,108 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style4.css') }}">
 </head>
 <body>
-    <!-- Navigation Bar -->
     <nav class="navbar">
         <a href="/todo">To Do</a>
         <a href="/plan">Plan</a>
         <a href="/user">User</a>
     </nav>
 
-    <!-- Update Profile Container -->
     <div class="update-profile-container">
         <header class="profile-header">
+            <button class="back-btn" onclick="window.location.href='/user';">Back</button>
+            <br><br>
             <h1>Update Profile</h1>
-            <p>Your user profile: Lorem ipsum dolor. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+            <p>You may update your profile here. This information will only be shown on your private profile and decide your auto generated weekly plan. Please fill all the required area. <br>This information will not be shared or sold to any organization by any ways.</p>
         </header>
 
-        <!-- Logo/Portrait Placeholder -->
-        <div class="logo-placeholder">
-            <p>LOGO</p>
-        </div>
-
-        <!-- Profile Form -->
         <form class="profile-form">
             <div class="form-group">
                 <label for="name">Name:</label>
-                <input type="text" id="name" placeholder="Enter your name">
+                <input type="text" id="name" placeholder="Enter your name (Required)" required>
+            </div>
+
+            <div class="form-group">
+                <label for="sex">Sex:</label>
+                <input type="text" id="sex" placeholder="Enter your sex (Required)" required>
             </div>
 
             <div class="form-group">
                 <label for="height">Height:</label>
-                <input type="number" id="height" placeholder="Enter your height (cm)"> cm
+                <input type="number" id="height" placeholder="Enter your height (cm) (Required)" required> cm
             </div>
 
             <div class="form-group">
                 <label for="weight">Weight:</label>
-                <input type="number" id="weight" placeholder="Enter your weight (kg)"> kg
+                <input type="number" id="weight" placeholder="Enter your weight (kg) (Required)" required> kg
             </div>
 
             <div class="form-group">
                 <label for="goal-weight">Goal Weight:</label>
-                <input type="number" id="goal-weight" placeholder="Enter goal weight (kg)"> kg
+                <input type="number" id="goal-weight" placeholder="Enter goal weight (kg) (Required)" required> kg
             </div>
-
-            <button type="button" class="match-btn">Match with Scale</button>
 
             <div class="form-group">
                 <label for="fat-rate">Fat Rate:</label>
-                <input type="number" id="fat-rate" placeholder="Enter fat rate"> %
-            </div>
-
-            <div class="form-group">
-                <label for="bmi">BMI:</label>
-                <input type="number" id="bmi" placeholder="Enter BMI">
+                <input type="number" id="fat-rate" placeholder="Enter fat rate (Optional)"> %
             </div>
 
             <div class="form-group">
                 <label for="goal-fat-rate">Goal Fat Rate:</label>
-                <input type="number" id="goal-fat-rate" placeholder="Enter goal fat rate"> %
+                <input type="number" id="goal-fat-rate" placeholder="Enter goal fat rate (Optional)"> %
             </div>
+
+            <div class="form-group">
+                <label for="additional-note">Additional Notes:</label>
+                <textarea id="additional-note" placeholder="(Optional)&#10;E.g. I want to work out my arms more." rows="4"></textarea>
+            </div>
+            
 
             <div class="form-buttons">
                 <button type="submit" class="save-btn">Save</button>
-                <button type="button" class="next-btn">Next</button>
             </div>
         </form>
     </div>
 </body>
+<script>
+    document.querySelector('.save-btn').addEventListener('click', function(event) {
+        event.preventDefault(); 
+
+        const requiredFields = ['name', 'sex', 'height', 'weight', 'goal-weight'];
+        const missingFields = requiredFields.filter(field => !document.getElementById(field).value.trim());
+
+        if (missingFields.length > 0) {
+            alert("Please fill all required fields: " + missingFields.join(', '));
+            return;
+        }
+
+        const data = {
+            name: document.getElementById('name').value,
+            sex: document.getElementById('sex').value,
+            height: document.getElementById('height').value,
+            weight: document.getElementById('weight').value,
+            goal_weight: document.getElementById('goal-weight').value,
+            fat_rate: document.getElementById('fat-rate').value,
+            goal_fat_rate: document.getElementById('goal-fat-rate').value,
+            additional_note: document.getElementById('additional-note').value
+        };
+
+        fetch('/save-profile', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            alert(result.message);
+            console.log('Updated data:', result.updated_data);
+            window.location.href = '/user';
+        })
+        .catch(error => {
+            console.error('Error updating profile:', error);
+        });
+    });
+</script>
+    
 </html>

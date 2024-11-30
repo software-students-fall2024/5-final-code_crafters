@@ -15,7 +15,7 @@ load_dotenv()
 api_key = os.getenv('GEMINI_API_KEY')
 genai.configure(api_key=api_key)
 
-with open('./machine-learning-client/prompt.json', 'r') as file:
+with open('prompt.json', 'r') as file:
     promt = json.load(file)["prompt"]
 
 user_info = {
