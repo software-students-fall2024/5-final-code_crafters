@@ -220,6 +220,7 @@ def add_todo(exercise_id: str, working_time=None, reps=None, weight=None):
             "working_time": working_time,
             "reps": reps,
             "weight": weight,
+            "time": datetime.utcnow(),
         }
 
         if user_todo:
