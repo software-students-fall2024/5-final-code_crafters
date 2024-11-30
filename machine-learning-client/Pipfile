@@ -8,6 +8,8 @@ python-dotenv = "*"
 google-cloud-speech = "*"
 google-auth = "*"
 flask = "*"
+"google.generativeai" = "*"
+"google.ai.generativelanguage" = "*"
 
 [dev-packages]
 pytest = "*"
