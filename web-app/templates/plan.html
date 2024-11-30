@@ -90,11 +90,14 @@
                             const listItem = document.createElement('li');
                             listItem.innerHTML = `
                                 <span>${date}</span>
-                                <p>To Do List (brief): ${
-                                    tasks.length > 0
-                                        ? tasks.slice(0, 3).map(task => task).join(", ")
-                                        : "No tasks available"
-                                }</p>`;
+                                <p>To Do List (brief):</p>
+                                <ul>
+                                    ${
+                                        tasks.length > 0
+                                            ? tasks.slice(0, 3).map(task => `<li>${task}</li>`).join("")
+                                            : "<li>No tasks available</li>"
+                                    }
+                                </ul>`;
                             weekList.appendChild(listItem);
                         });
                     } else {
@@ -116,13 +119,13 @@
                     return response.json();
                 })
                 .then(data => {
-                    monthList.innerHTML = ''; // Clear existing list
+                    monthList.innerHTML = '';
                     if (typeof data === "object" && Object.keys(data).length > 0) {
                         Object.entries(data).forEach(([week, description]) => {
                             const listItem = document.createElement('li');
                             listItem.innerHTML = `
                                 <span>${week}</span>
-                                <p>Weekly Exercise Plan: ${
+                                <p>Weekly Plan: ${
                                     description ? description : "No description available"
                                 }</p>`;
                             monthList.appendChild(listItem);
