@@ -1004,11 +1004,11 @@ def generate_weekly_plan():
             "additional_note": user.get("additional_note", ""),
         }
 
-        response = requests.post("http://ml_client:5000/generate-weekly-plan", json=user_info, timeout=10)
+        response = requests.post("http://machine-learning-client:8080/plan", json=user_info, timeout=10)
 
         if response.status_code == 200:
             ml_response = response.json()
-            return jsonify({"success": True, "plan": ml_response.get("plan")}), 200
+            return jsonify({"success": True, "plan": ml_response}), 200
         else:
             return jsonify({"success": False, "message": "Failed to generate plan"}), 500
 
@@ -1033,3 +1033,4 @@ def get_all_exercises():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)
+
