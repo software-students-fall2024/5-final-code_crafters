@@ -100,15 +100,17 @@
                         const tasks = data[dateStr] || []; 
                         const listItem = document.createElement('li');
                         listItem.innerHTML = `
-                            <span>${day}</span>
-                            <small>${dateStr}</small>
-                            <ul>
-                                ${
-                                    tasks.length > 0
-                                        ? tasks.slice(0, 3).map(task => `<li>${task}</li>`).join("")
-                                        : "<li>No tasks available</li>"
+                            <div style="display: flex; flex-direction: column; align-items: flex-start;">
+                                <span>${day}</span>
+                                <small>${dateStr}</small>
+                            </div>
+                            <div style="display: flex; flex-direction: column; align-items: flex-start;">
+                                ${tasks.length > 0
+                                    ? tasks.slice(0, 3).map(task => `<div style="color: #333333;"> &#9679; ${task}</div>`).join("")
+                                    : "<div style='color: gray; font-style: italic;'>No tasks available for today</div>"
                                 }
-                            </ul>`;
+                            </div>
+                            `;
                         weekList.appendChild(listItem);
 
                         // 移动到下一天
@@ -146,7 +148,7 @@
                                 <span>Week ${weekIndex++}</span>
                                 <small>${startStr} - ${endStr}</small>
                                 <p>Weekly Plan: ${
-                                    description ? description : "No description available"
+                                    description ? description : "<div style='color: gray; font-style: italic;'>No description available</div>"
                                 }</p>`;
                             monthList.appendChild(listItem);
                         });
