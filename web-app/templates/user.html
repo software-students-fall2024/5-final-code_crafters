@@ -79,65 +79,37 @@
         });
     });
 
-
-    // function generateWorkoutCalendar(workoutData) {
-    //     const calendar = document.getElementById("workout-calendar");
-
-    //     const now = new Date();
-    //     const year = now.getFullYear();
-    //     const month = now.getMonth(); 
-    //     const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    //     for (let day = 1; day <= daysInMonth; day++) {
-    //         const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    //         const intensity = workoutData[dateStr] || 0; 
-
-    //         const dayCell = document.createElement("div");
-    //         dayCell.classList.add("day-cell");
-    //         dayCell.setAttribute("data-intensity", intensity);
-    //         dayCell.title = `Date: ${dateStr}\nTasks: ${intensity}`;
-    //         calendar.appendChild(dayCell);
-    //     }
-    // }
-
-    // fetch("/api/workout-data")
-    //     .then((response) => response.json())
-    //     .then((data) => {
-    //         generateWorkoutCalendar(data);
-    //     })
-    //     .catch((error) => console.error("Error fetching workout data:", error));
     function generateWorkoutCalendar(workoutData) {
         const calendar = document.getElementById("workout-calendar");
         const header = document.querySelector(".track-header");
 
-        // 获取当前日期信息
         const now = new Date();
         const year = now.getFullYear();
         const month = now.getMonth();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const firstDayOfWeek = new Date(year, month, 1).getDay(); // 月初是星期几
+        const firstDayOfWeek = new Date(year, month, 1).getDay();
 
-        // 填充空白格子
         for (let i = 0; i < firstDayOfWeek; i++) {
             const emptyCell = document.createElement("div");
             emptyCell.classList.add("empty-cell");
             calendar.appendChild(emptyCell);
         }
 
-        // 填充日历
         for (let day = 1; day <= daysInMonth; day++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-            const intensity = workoutData[dateStr] || 0; // 获取任务强度
+            let intensity = workoutData[dateStr] || 0; 
+            if (intensity>=4){
+                intensity = 4;
+            }
 
             const dayCell = document.createElement("div");
             dayCell.classList.add("day-cell");
             dayCell.setAttribute("data-intensity", intensity);
-            dayCell.title = `Date: ${dateStr}\nTasks: ${intensity}`;
+            dayCell.title = `Date: ${dateStr}\nTasks: ${workoutData[dateStr] || 0}`;
             calendar.appendChild(dayCell);
         }
     }
 
-    // 从后端获取数据并生成日历
     fetch("/api/workout-data")
         .then((response) => response.json())
         .then((data) => {
