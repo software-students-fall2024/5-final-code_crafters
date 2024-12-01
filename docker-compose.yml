@@ -7,7 +7,18 @@ services:
     ports:
       - "5001:5001"  
     depends_on:
-      - machine-learning-client  
+      - machine-learning-client
+      - db-service 
+    networks:
+      - app-network
+    volumes:
+      - shared-volume:/app/uploads
+  
+  db-service:
+    build:
+      context: ./db-service
+    ports:
+      - "5112:5112"
     networks:
       - app-network
     volumes:
