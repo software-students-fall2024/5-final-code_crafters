@@ -109,17 +109,21 @@ def authenticate_user():
 
 @app.route("/todo/get/<string:user_id>", methods=["GET"])
 def get_todo(user_id):
-    todo_data = todo_collection.find_one({"user_id": user_id})
+    todo_data = todo_collection.find({"user_id": user_id})
+    today = datetime.now().date()
     if todo_data:
-        todo_data["_id"] = str(todo_data["_id"])
-        
-        for item in todo_data.get("todo", []):
-            item["exercise_todo_id"] = int(item["exercise_todo_id"])
-            item["exercise_id"] = str(item["exercise_id"])
-            if "time" in item and isinstance(item["time"], datetime):
-                item["time"] = item["time"].strftime("%Y-%m-%d")
+        for data in todo_data:
+            if data["date"].date() == today:
+                data["_id"] = str(data["_id"])
+                
+                for item in data.get("todo", []):
+                    item["exercise_todo_id"] = int(item["exercise_todo_id"])
+                    item["exercise_id"] = str(item["exercise_id"])
+                    if "time" in item and isinstance(item["time"], datetime):
+                        item["time"] = item["time"].strftime("%Y-%m-%d")
+                break
 
-        return jsonify(todo_data), 200
+        return jsonify(data), 200
 
     return jsonify({"error": "Todo not found"}), 404
 

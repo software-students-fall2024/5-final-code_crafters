@@ -387,12 +387,14 @@ def logout():
     logout_user()
     return redirect(url_for("login"))
 
+
 @app.route("/todo")
 @login_required
 def todo():
     """Displays the user's To-Do list with all the exercises and their details."""
     exercises = get_todo()
     return render_template("todo.html", exercises=exercises)
+
 
 @app.route("/search", methods=["GET", "POST"])
 @login_required
@@ -745,6 +747,7 @@ def get_month_plan():
 
     return jsonify(month_plan_data)
 
+
 @app.route('/user')
 @login_required
 def user_profile():
@@ -764,6 +767,7 @@ def update_profile():
         # Handle profile update logic here
         return redirect(url_for('user_profile'))
     return render_template('update.html')
+
 
 @app.route('/save-profile', methods=['POST'])
 @login_required
@@ -797,6 +801,8 @@ def save_profile():
         return jsonify({"error": "Failed to update profile"}), 500
 
     return jsonify({"message": "User profile updated successfully.", "updated_data": update_fields}), 200
+
+
 @app.route('/api/generate-weekly-plan', methods=['POST'])
 @login_required
 def generate_weekly_plan():
@@ -844,6 +850,7 @@ def generate_weekly_plan():
     except Exception as e:
         print(f"Error generating plan: {e}")
         return jsonify({"success": False, "message": "Internal server error"}), 500
+
 
 @app.route("/api/workout-data", methods=["GET"])
 @login_required
