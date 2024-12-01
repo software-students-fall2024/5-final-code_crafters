@@ -21,6 +21,41 @@ users_collection = db["users"]
 search_history_collection = db["search_history"]
 edit_transcription_collection = db["edit_transcription"]
 
+
+def add_or_skip_todo(user_id):
+    """
+    插入新的 To-Do 数据之前，检查是否已存在相同的 user_id 和日期记录。
+    如果存在，不插入；如果不存在，插入新记录。
+    """
+    try:
+        today_date = datetime.utcnow().strftime("%Y-%m-%d")
+        
+        existing_todo = todo_collection.find_one({
+            "user_id": str(user_id),
+            "date": {
+                "$gte": datetime.strptime(today_date, "%Y-%m-%d"),
+                "$lt": datetime.strptime(today_date, "%Y-%m-%d") + timedelta(days=1)
+            }
+        })
+        
+        if existing_todo:
+            print(f"DEBUG: To-Do entry already exists for user {user_id} on {today_date}.")
+            return {"message": "To-Do entry already exists", "exists": True}
+        
+        todo_collection.insert_one({
+            "user_id": str(user_id),
+            "date": datetime.utcnow(),
+            "todo": []
+        })
+        
+        print(f"DEBUG: New To-Do entry created for user {user_id} on {today_date}.")
+        return {"message": "New To-Do entry created", "created": True}
+    
+    except Exception as e:
+        print(f"ERROR: Failed to add or skip To-Do entry: {e}")
+        return {"message": "An error occurred", "error": str(e)}
+
+
 @app.route("/users/get/<user_id>", methods=["GET"])
 def get_user(user_id):
     """Retrieve user information by ID."""
@@ -49,9 +84,6 @@ def create_user():
 
         user_id = users_collection.insert_one(user_data).inserted_id
         print(f"user id is :", str(user_id))
-        todo_collection.insert_one(
-            {"user_id": str(user_id), "date": datetime.utcnow(), "todo": []}
-        )
         return jsonify({"user_id": str(user_id)}), 200
 
     except Exception as e:
@@ -71,6 +103,7 @@ def authenticate_user():
     user = users_collection.find_one({"username": username})
     if user and check_password_hash(user["password"], password):
         user["_id"] = str(user["_id"])
+        add_or_skip_todo(user["_id"])
         return jsonify(user), 200
     return jsonify({"error": "Invalid username or password"}), 401
 
