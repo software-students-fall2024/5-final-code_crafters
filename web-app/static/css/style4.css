@@ -479,37 +479,58 @@ body {
     text-align: center;
 }
 
+.track-header {
+    display: flex;
+    grid-template-columns: repeat(7, 1fr); /* 一周7列 */
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.day-header {
+    padding: 10px 0;
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    font-weight: bold;
+}
+
 .calendar-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr); /* 每周 7 天 */
-    gap: 5px; /* 格子间距 */
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px; 
     margin: 20px 0;
 }
 
+.empty-cell {
+    background-color: #e0e0e0;
+    height: 50px;
+    border: 1px solid #ddd;
+}
+
 .calendar-grid div {
-    width: 20px; /* 格子宽 */
-    height: 20px; /* 格子高 */
-    border-radius: 3px; /* 轻微圆角 */
-    background-color: #ebedf0; /* 默认浅灰色 */
+    width: 20px; 
+    height: 20px; 
+    border-radius: 3px; 
+    background-color: #ebedf0;
     display: inline-block;
     text-align: center;
     line-height: 20px;
     font-size: 10px;
-    color: #333; /* 可选：显示强度文字 */
+    color: #333; 
 }
 
 .calendar-grid div[data-intensity="1"] {
-    background-color: #c6e48b; /* 浅绿色 */
+    background-color: #c6e48b; 
 }
 
 .calendar-grid div[data-intensity="2"] {
-    background-color: #7bc96f; /* 中绿色 */
+    background-color: #7bc96f; 
 }
 
 .calendar-grid div[data-intensity="3"] {
-    background-color: #239a3b; /* 深绿色 */
+    background-color: #239a3b; 
 }
 
 .calendar-grid div[data-intensity="4"] {
-    background-color: #196127; /* 最深绿色 */
+    background-color: #196127; 
 }

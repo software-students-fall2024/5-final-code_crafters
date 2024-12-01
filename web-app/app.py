@@ -31,7 +31,8 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 # URL of your db-service
-DB_SERVICE_URL = "http://db-service:5112/"
+#DB_SERVICE_URL = "http://db-service:5112/"
+DB_SERVICE_URL = "http://localhost:5112/"
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -808,14 +809,12 @@ def generate_weekly_plan():
     try:
         user_id = current_user.id
 
-        # Get user data
         response = requests.get(f"{DB_SERVICE_URL}/users/get/{user_id}")
         if response.status_code != 200:
             return jsonify({"success": False, "message": "User not found"}), 404
 
         user = response.json()
 
-        # Get all exercises
         response = requests.get(f"{DB_SERVICE_URL}/exercises/all")
         if response.status_code != 200:
             return jsonify({"success": False, "message": "Failed to retrieve exercises"}), 500
@@ -851,66 +850,44 @@ def generate_weekly_plan():
         print(f"Error generating plan: {e}")
         return jsonify({"success": False, "message": "Internal server error"}), 500
 
-@app.route('/data')
-@login_required
-def check_my_data():
-    """Displays the user's data and statistics."""
-    data = {
-        "workouts_completed": 50,
-        "total_time": "25 hours",
-        "calories_burned": 5000
-    }
-    return render_template('data.html', data=data)
-
 @app.route("/api/workout-data", methods=["GET"])
 @login_required
 def get_workout_data():
     """
     获取用户的 To-Do 数据并按日期统计
-    返回每一天的强度（即当天的任务数量）
+    返回每一天的任务数量
     """
     try:
         user_id = current_user.id
         print(f"DEBUG: Current user ID: {user_id}")
 
-        todos = todo_collection.find({"user_id": user_id})
-        print(f"DEBUG: Fetched todos from MongoDB: {list(todos)}")  # 转为列表以便打印
+        # 调用 db-service 获取用户 To-Do 数据
+        response = requests.get(f"{DB_SERVICE_URL}/todo/{user_id}")
+        if response.status_code != 200:
+            print(f"ERROR: Failed to fetch todos, status: {response.status_code}")
+            return jsonify({"error": "Failed to retrieve workout data"}), 500
 
+        todos = response.json()
+        print(f"DEBUG: Received todos from db-service: {todos}")
+
+        # 统计每日任务数量
         workout_data = {}
-
         for todo in todos:
-            # 获取日期字段，转换为 yyyy-MM-dd 格式
-            try:
-                date = datetime.utcfromtimestamp(todo["time"] / 1000).strftime("%Y-%m-%d")
-                print(f"DEBUG: Processed date: {date}")
-            except KeyError as e:
-                print(f"WARNING: Missing 'time' key in todo item: {todo}")
-                continue
+            for item in todo.get("todo", []):
+                date = item.get("time")  # 使用转换后的 time 字段
+                if date:
+                    if date not in workout_data:
+                        workout_data[date] = 0
+                    workout_data[date] += 1
 
-            if date not in workout_data:
-                workout_data[date] = 0
-            # 统计当天的任务数量
-            workout_data[date] += len(todo.get("todo", []))
-            print(f"DEBUG: Updated workout data for {date}: {workout_data[date]}")
-
-        # 填充当月所有日期为 0 强度，确保日历完整
-        now = get_eastern_today()
-        print(f"DEBUG: Current date in Eastern Time: {now}")
-
-        year, month = now.year, now.month
-        days_in_month = calendar.monthrange(year, month)[1]
-        print(f"DEBUG: Year: {year}, Month: {month}, Days in month: {days_in_month}")
-
-        for day in range(1, days_in_month + 1):
-            date = f"{year}-{str(month).zfill(2)}-{str(day).zfill(2)}"
-            if date not in workout_data:
-                workout_data[date] = 0
-            print(f"DEBUG: Final workout data for {date}: {workout_data[date]}")
-
+        print(f"DEBUG: Final workout data: {workout_data}")
         return jsonify(workout_data)
 
+    except requests.exceptions.RequestException as e:
+        print(f"ERROR: Communication with db-service failed: {e}")
+        return jsonify({"error": "Failed to retrieve workout data"}), 500
     except Exception as e:
-        print(f"ERROR: Error retrieving workout data: {e}")
+        print(f"ERROR: Unexpected error: {e}")
         return jsonify({"error": "Failed to retrieve workout data"}), 500
 
 
