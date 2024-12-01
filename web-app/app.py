@@ -707,6 +707,7 @@ def get_week_plan():
 
     return jsonify(week_plan_data)
 
+
 @app.route('/plan/month', methods=['GET'])
 @login_required
 def get_month_plan():
