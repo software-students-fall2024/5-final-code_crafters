@@ -144,12 +144,12 @@
 
                             const listItem = document.createElement('li');
                             listItem.innerHTML = `
-                            <div style="display: flex; flex-direction: column; align-items: flex-start;">
+                            <div style="display: flex; flex-direction: column;">
                                 <span>Week ${weekIndex++}</span>
                                 <small>${startStr} - ${endStr}</small>
                             </div>
                                 <p>Weekly Plan: ${
-                                    description ? description : "<div style='color: gray; font-style: italic;'>No description available</div>"
+                                    description ? description : "<div style='color: gray; font-style: italic;'>No description</div>"
                                 }</p>`;
                             monthList.appendChild(listItem);
                         });
