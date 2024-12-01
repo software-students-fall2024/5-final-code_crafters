@@ -685,7 +685,6 @@ def get_week_plan():
     start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
 
-    # Get user's todo list via API call
     response = requests.get(f"{DB_SERVICE_URL}/todo/get/{current_user.id}")
     if response.status_code != 200:
         return jsonify({"error": "Failed to get todo list"}), 500
@@ -695,14 +694,13 @@ def get_week_plan():
         return jsonify({})
 
     todos = user_todo["todo"]
-
     week_plan_data = {}
     current_date = start_date_dt
     while current_date <= end_date_dt:
         day_tasks = [
             task["workout_name"]
             for task in todos
-            if "time" in task and datetime.strptime(task["time"], "%Y-%m-%d") == current_date.date()
+            if "time" in task and datetime.fromisoformat(task["time"]).date() == current_date.date()
         ][:3]
         week_plan_data[current_date.strftime("%Y-%m-%d")] = day_tasks
         current_date += timedelta(days=1)
@@ -739,7 +737,7 @@ def get_month_plan():
         week_tasks = [
             task["workout_name"]
             for task in todos
-            if "time" in task and week_start_date.date() <= datetime.strptime(task["time"], "%Y-%m-%d").date() <= week_end_date.date()
+            if "time" in task and week_start_date.date() <= datetime.fromisoformat(task["time"]).date() <= week_end_date.date()
         ]
 
         if week_tasks:
