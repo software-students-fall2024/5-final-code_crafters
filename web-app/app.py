@@ -861,7 +861,6 @@ def get_workout_data():
         user_id = current_user.id
         print(f"DEBUG: Current user ID: {user_id}")
 
-        # 调用 db-service 获取用户 To-Do 数据
         response = requests.get(f"{DB_SERVICE_URL}/todo/{user_id}")
         if response.status_code != 200:
             print(f"ERROR: Failed to fetch todos, status: {response.status_code}")
@@ -870,11 +869,10 @@ def get_workout_data():
         todos = response.json()
         print(f"DEBUG: Received todos from db-service: {todos}")
 
-        # 统计每日任务数量
         workout_data = {}
         for todo in todos:
             for item in todo.get("todo", []):
-                date = item.get("time")  # 使用转换后的 time 字段
+                date = item.get("time") 
                 if date:
                     if date not in workout_data:
                         workout_data[date] = 0

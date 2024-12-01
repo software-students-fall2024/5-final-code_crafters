@@ -245,5 +245,24 @@ def get_all_exercises():
         exercise["_id"] = str(exercise["_id"])
     return jsonify(exercises), 200
 
+@app.route("/todo/<user_id>", methods=["GET"])
+def get_todos(user_id):
+    """
+    返回指定用户的 To-Do 数据
+    """
+    try:
+        todos = list(todo_collection.find({"user_id": user_id}))
+        for todo in todos:
+            todo["_id"] = str(todo["_id"])
+            if "todo" in todo:
+                for item in todo["todo"]:
+                    if "time" in item:
+                        item["time"] = datetime.fromisoformat(item["time"]).strftime("%Y-%m-%d")
+        return jsonify(todos), 200
+    except Exception as e:
+        print(f"ERROR: Failed to retrieve todos for user {user_id}: {e}")
+        return jsonify({"error": "Failed to retrieve todos"}), 500
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5112, debug=True)
