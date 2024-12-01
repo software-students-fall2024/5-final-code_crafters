@@ -16,6 +16,8 @@ from flask_login import (
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.exceptions import BadRequest
 from dotenv import load_dotenv
+from zoneinfo import ZoneInfo
+
 
 load_dotenv()
 
@@ -54,6 +56,7 @@ class User(UserMixin):
         except requests.RequestException as e:
             print(f"Error fetching user: {e}")
             return None
+
 def get_user_by_id(user_id):
     """Retrieve user information via API."""
     try:
@@ -64,6 +67,7 @@ def get_user_by_id(user_id):
     except requests.RequestException as e:
         print(f"Error retrieving user: {e}")
         return None
+
 def update_user_by_id(user_id, update_fields):
     """Update user data via the db-service."""
     try:
@@ -75,7 +79,6 @@ def update_user_by_id(user_id, update_fields):
     except requests.RequestException as e:
         print(f"Error updating user: {e}")
         return False
-
 
 def normalize_text(text: str) -> str:
     """Normalize text for search queries."""
@@ -106,6 +109,7 @@ def get_exercise(exercise_id: str):
     except requests.RequestException as e:
         print(f"Error getting exercise: {e}")
         return None
+
 def get_all_exercises():
     """Retrieves all exercise names from the database via API."""
     try:
@@ -116,7 +120,6 @@ def get_all_exercises():
     except Exception as e:
         print(f"Error retrieving exercises: {e}")
         return []
-
 
 def get_todo():
     """Retrieve the user's to-do list from the db-service."""
@@ -131,6 +134,7 @@ def get_todo():
     except requests.RequestException as e:
         print(f"Error getting todo: {e}")
         return []  
+
 def get_today_todo():
     """Retrieves today's To-Do list for the logged-in user."""
     try:
@@ -142,8 +146,10 @@ def get_today_todo():
         todo_list = response.json()
         if not todo_list or "todo" not in todo_list:
             return []
-
-        today = datetime.utcnow().date()
+        
+        eastern_time = datetime.now(ZoneInfo("America/New_York"))
+        utc_time = eastern_time.astimezone(ZoneInfo("UTC"))
+        today = utc_time.date()
         today_todo = []
         for item in todo_list["todo"]:
             if "time" in item:
@@ -173,7 +179,10 @@ def add_todo_api(exercise_id: str, working_time=None, reps=None, weight=None):
     exercise = get_exercise(exercise_id)
     if not exercise:
         return False
-
+    
+    eastern_time = datetime.now(ZoneInfo("America/New_York"))
+    utc_time = eastern_time.astimezone(ZoneInfo("UTC"))
+    
     exercise_item = {
         "exercise_todo_id": int(datetime.now().timestamp()),  # Unique ID
         "exercise_id": exercise_id,
@@ -181,6 +190,7 @@ def add_todo_api(exercise_id: str, working_time=None, reps=None, weight=None):
         "working_time": working_time,
         "reps": reps,
         "weight": weight,
+        "time": utc_time.isoformat()
     }
     data = {
         "user_id": current_user.id,
@@ -335,7 +345,7 @@ def register():
                 )
                 login_user(user)  
 
-                return jsonify({"success": True, "message": "Register successful!", "redirect_url": "/todo"}), 200
+                return jsonify({"success": True, "message": "Register successful! Please Login now.", "redirect_url": "/todo"}), 200
 
         return jsonify({"success": False, "message": response.json().get("message", "Registration failed!")}), 400
 
@@ -658,7 +668,7 @@ month_plan_data = [
 @login_required
 def get_plan():
     """Render the main plan template."""
-    current_date = datetime.utcnow()
+    current_date = datetime.now(ZoneInfo("America/New_York"))
     return render_template('plan.html', current_date=current_date)
 
 
@@ -852,6 +862,58 @@ def check_my_data():
         "calories_burned": 5000
     }
     return render_template('data.html', data=data)
+
+@app.route("/api/workout-data", methods=["GET"])
+@login_required
+def get_workout_data():
+    """
+    获取用户的 To-Do 数据并按日期统计
+    返回每一天的强度（即当天的任务数量）
+    """
+    try:
+        user_id = current_user.id
+        print(f"DEBUG: Current user ID: {user_id}")
+
+        todos = todo_collection.find({"user_id": user_id})
+        print(f"DEBUG: Fetched todos from MongoDB: {list(todos)}")  # 转为列表以便打印
+
+        workout_data = {}
+
+        for todo in todos:
+            # 获取日期字段，转换为 yyyy-MM-dd 格式
+            try:
+                date = datetime.utcfromtimestamp(todo["time"] / 1000).strftime("%Y-%m-%d")
+                print(f"DEBUG: Processed date: {date}")
+            except KeyError as e:
+                print(f"WARNING: Missing 'time' key in todo item: {todo}")
+                continue
+
+            if date not in workout_data:
+                workout_data[date] = 0
+            # 统计当天的任务数量
+            workout_data[date] += len(todo.get("todo", []))
+            print(f"DEBUG: Updated workout data for {date}: {workout_data[date]}")
+
+        # 填充当月所有日期为 0 强度，确保日历完整
+        now = get_eastern_today()
+        print(f"DEBUG: Current date in Eastern Time: {now}")
+
+        year, month = now.year, now.month
+        days_in_month = calendar.monthrange(year, month)[1]
+        print(f"DEBUG: Year: {year}, Month: {month}, Days in month: {days_in_month}")
+
+        for day in range(1, days_in_month + 1):
+            date = f"{year}-{str(month).zfill(2)}-{str(day).zfill(2)}"
+            if date not in workout_data:
+                workout_data[date] = 0
+            print(f"DEBUG: Final workout data for {date}: {workout_data[date]}")
+
+        return jsonify(workout_data)
+
+    except Exception as e:
+        print(f"ERROR: Error retrieving workout data: {e}")
+        return jsonify({"error": "Failed to retrieve workout data"}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
