@@ -478,3 +478,38 @@ body {
     width: 100%;
     text-align: center;
 }
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr); /* 每周 7 天 */
+    gap: 5px; /* 格子间距 */
+    margin: 20px 0;
+}
+
+.calendar-grid div {
+    width: 20px; /* 格子宽 */
+    height: 20px; /* 格子高 */
+    border-radius: 3px; /* 轻微圆角 */
+    background-color: #ebedf0; /* 默认浅灰色 */
+    display: inline-block;
+    text-align: center;
+    line-height: 20px;
+    font-size: 10px;
+    color: #333; /* 可选：显示强度文字 */
+}
+
+.calendar-grid div[data-intensity="1"] {
+    background-color: #c6e48b; /* 浅绿色 */
+}
+
+.calendar-grid div[data-intensity="2"] {
+    background-color: #7bc96f; /* 中绿色 */
+}
+
+.calendar-grid div[data-intensity="3"] {
+    background-color: #239a3b; /* 深绿色 */
+}
+
+.calendar-grid div[data-intensity="4"] {
+    background-color: #196127; /* 最深绿色 */
+}

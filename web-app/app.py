@@ -86,6 +86,7 @@ def get_eastern_today():
     
     eastern_now = utc_now.replace(tzinfo=ZoneInfo("UTC")).astimezone(eastern_tz)
     
+    print(f"time now: ", eastern_now)
     return eastern_now
 
 def normalize_text(text: str) -> str:
@@ -1054,6 +1055,58 @@ def get_all_exercises():
     except Exception as e:
         print(f"Error retrieving exercises: {e}")
         return []
+
+
+@app.route("/api/workout-data", methods=["GET"])
+@login_required
+def get_workout_data():
+    """
+    获取用户的 To-Do 数据并按日期统计
+    返回每一天的强度（即当天的任务数量）
+    """
+    try:
+        user_id = current_user.id
+        print(f"DEBUG: Current user ID: {user_id}")
+
+        todos = todo_collection.find({"user_id": user_id})
+        print(f"DEBUG: Fetched todos from MongoDB: {list(todos)}")  # 转为列表以便打印
+
+        workout_data = {}
+
+        for todo in todos:
+            # 获取日期字段，转换为 yyyy-MM-dd 格式
+            try:
+                date = datetime.utcfromtimestamp(todo["time"] / 1000).strftime("%Y-%m-%d")
+                print(f"DEBUG: Processed date: {date}")
+            except KeyError as e:
+                print(f"WARNING: Missing 'time' key in todo item: {todo}")
+                continue
+
+            if date not in workout_data:
+                workout_data[date] = 0
+            # 统计当天的任务数量
+            workout_data[date] += len(todo.get("todo", []))
+            print(f"DEBUG: Updated workout data for {date}: {workout_data[date]}")
+
+        # 填充当月所有日期为 0 强度，确保日历完整
+        now = get_eastern_today()
+        print(f"DEBUG: Current date in Eastern Time: {now}")
+
+        year, month = now.year, now.month
+        days_in_month = calendar.monthrange(year, month)[1]
+        print(f"DEBUG: Year: {year}, Month: {month}, Days in month: {days_in_month}")
+
+        for day in range(1, days_in_month + 1):
+            date = f"{year}-{str(month).zfill(2)}-{str(day).zfill(2)}"
+            if date not in workout_data:
+                workout_data[date] = 0
+            print(f"DEBUG: Final workout data for {date}: {workout_data[date]}")
+
+        return jsonify(workout_data)
+
+    except Exception as e:
+        print(f"ERROR: Error retrieving workout data: {e}")
+        return jsonify({"error": "Failed to retrieve workout data"}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)
