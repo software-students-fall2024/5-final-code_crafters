@@ -238,6 +238,7 @@ def update_user(user_id):
     except Exception as e:
         print(f"Error updating user: {e}")
         return jsonify({"error": "Failed to update user"}), 500
+
 @app.route("/exercises/all", methods=["GET"])
 def get_all_exercises():
     exercises = list(exercises_collection.find({}, {"workout_name": 1, "_id": 1}))
