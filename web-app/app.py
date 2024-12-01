@@ -26,6 +26,7 @@ from flask_login import (
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.exceptions import BadRequest
 import requests
+from zoneinfo import ZoneInfo
 
 load_dotenv()
 
@@ -78,6 +79,14 @@ class User(UserMixin):
             )
         return None
 
+def get_eastern_today():
+    utc_now = datetime.utcnow()
+    
+    eastern_tz = ZoneInfo("America/New_York")
+    
+    eastern_now = utc_now.replace(tzinfo=ZoneInfo("UTC")).astimezone(eastern_tz)
+    
+    return eastern_now
 
 def normalize_text(text: str) -> str:
     """
@@ -191,7 +200,7 @@ def get_today_todo():
             print("DEBUG: No todo list or 'todo' key not found.")
             return []
 
-        today = datetime.utcnow().date()
+        today = get_eastern_today().date()
         print(f"DEBUG: Today's date: {today}")
 
         today_todo = []
@@ -258,7 +267,7 @@ def add_todo(exercise_id: str, working_time=None, reps=None, weight=None):
             "working_time": working_time,
             "reps": reps,
             "weight": weight,
-            "time": datetime.utcnow(),
+            "time": get_eastern_today(),
         }
 
         if user_todo:
@@ -310,7 +319,7 @@ def add_search_history(content):
     search_entry = {
         "user_id": current_user.id,
         "content": content,
-        "time": datetime.utcnow(),
+        "time": get_eastern_today(),
     }
     search_history_collection.insert_one(search_entry)
 
@@ -322,7 +331,7 @@ def insert_transcription_entry(user_id, content):
     edit_transcription_entry = {
         "user_id": user_id,
         "content": content,
-        "time": datetime.utcnow(),
+        "time": get_eastern_today(),
     }
     result = edit_transcription_collection.insert_one(edit_transcription_entry)
     return result.inserted_id if result.inserted_id else None
@@ -432,7 +441,7 @@ def register():
     ).inserted_id
 
     todo_collection.insert_one(
-        {"user_id": str(user_id), "date": datetime.utcnow(), "todo": []}
+        {"user_id": str(user_id), "date": get_eastern_today(), "todo": []}
     )
 
     return (
@@ -827,7 +836,7 @@ month_plan_data = [
 @login_required
 def get_plan():
     """Render the main plan template."""
-    current_date = datetime.utcnow()
+    current_date = get_eastern_today()
     return render_template('plan.html', current_date=current_date)
 
 @app.route('/plan/week', methods=['GET'])
