@@ -111,19 +111,6 @@ header p {
     width: 100%;
     text-align: center;
 }
-.logout-btn {
-    background-color: rgb(161, 43, 51);
-    color: white;
-    border: none;
-    padding: 10px 20px; 
-    cursor: pointer;
-    font-size: 14px; 
-    border-radius: 5px;
-    margin-top: 20px;
-    display: block;
-    width: 100%;
-    text-align: center;
-}
 
 .search-box {
     width: 100%;

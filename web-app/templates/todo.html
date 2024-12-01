@@ -31,7 +31,6 @@
             {% endfor %}
         </div>
         <button class="delete-all-btn" onclick="window.location.href='/delete_exercise';">Delete</button>
-        <button class="logout-btn" onclick="window.location.href='/logout';">Log Out</button>
         <footer>
             <p>All rights reserved. <a href="#">Privacy policy</a></p>
         </footer>
@@ -48,10 +47,17 @@
             checkbox.addEventListener('change', function() {
                 });
         });
-        const today = new Date();
+        const utcDate = new Date();
+        utcDate.setHours(utcDate.getHours() + 5);
 
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        const formattedDate = today.toLocaleDateString('en-US', options);
+        const options = { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric'
+        };
+
+        const formattedDate = utcDate.toLocaleDateString('en-US', options);
 
         document.getElementById('current-date').innerText = formattedDate;
     </script>

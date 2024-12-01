@@ -41,7 +41,6 @@
             </ul>
         </section>
 
-        <!-- Month Plan Section -->
         <section id="month-plan" class="plan-section hidden">
             <ul class="month-list">
                 {% for plan in month_plan %}
@@ -65,52 +64,115 @@
         const prevWeekBtn = document.querySelector('.prev-btn');
         const nextWeekBtn = document.querySelector('.next-btn');
     
-        let currentWeekStartDate = new Date();
+        const currentWeekStartDate = getMonday(new Date());
         let currentMonth = new Date().toISOString().slice(0, 7);
-    
-        function fetchWeekPlan(startDate) {
-            const start = new Date(startDate);
+        
+        function getMonday(date) {
+            const day = date.getDay(); 
+            const diff = day === 0 ? -6 : 1 - day; 
+            const monday = new Date(date);
+            monday.setDate(date.getDate() + diff);
+            return monday;
+        }
+
+        function fetchWeekPlan(currentDate) {
+            const start = getMonday(currentDate); 
             const end = new Date(start);
-            end.setDate(start.getDate() + 6);
-    
+            end.setDate(start.getDate() + 6); 
+
             const startStr = start.toISOString().split('T')[0];
             const endStr = end.toISOString().split('T')[0];
-    
+
+            const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
             fetch(`/plan/week?start_date=${startStr}&end_date=${endStr}`)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Error fetching week plan: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     weekList.innerHTML = '';
-                    data.forEach(plan => {
+                    let currentDay = new Date(start); 
+                    daysOfWeek.forEach(day => {
+                        const dateStr = currentDay.toISOString().split('T')[0]; 
+                        const tasks = data[dateStr] || []; 
                         const listItem = document.createElement('li');
-                        listItem.innerHTML = `<span>${plan.day}</span><p>To Do List (brief): ${plan.task}</p>`;
+                        listItem.innerHTML = `
+                            <span>${day}</span>
+                            <small>${dateStr}</small>
+                            <ul>
+                                ${
+                                    tasks.length > 0
+                                        ? tasks.slice(0, 3).map(task => `<li>${task}</li>`).join("")
+                                        : "<li>No tasks available</li>"
+                                }
+                            </ul>`;
                         weekList.appendChild(listItem);
+
+                        // 移动到下一天
+                        currentDay.setDate(currentDay.getDate() + 1);
                     });
+                })
+                .catch(error => {
+                    console.error(error);
+                    weekList.innerHTML = `<li>Error loading week plan</li>`;
                 });
         }
-    
+
         function fetchMonthPlan(month) {
             fetch(`/plan/month?month=${month}`)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Error fetching month plan: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     monthList.innerHTML = '';
-                    data.forEach(plan => {
-                        const listItem = document.createElement('li');
-                        listItem.innerHTML = `<span>${plan.week}</span><p>Description of the Exercise Plan: ${plan.description}</p>`;
-                        monthList.appendChild(listItem);
-                    });
+                    if (typeof data === "object" && Object.keys(data).length > 0) {
+                        let weekIndex = 1;
+                        Object.entries(data).forEach(([startDate, description]) => {
+                            const start = new Date(startDate);
+                            const end = new Date(start);
+                            end.setDate(start.getDate() + 6);
+
+                            const startStr = start.toISOString().split('T')[0];
+                            const endStr = end.toISOString().split('T')[0];
+
+                            const listItem = document.createElement('li');
+                            listItem.innerHTML = `
+                                <span>Week ${weekIndex++}</span>
+                                <small>${startStr} - ${endStr}</small>
+                                <p>Weekly Plan: ${
+                                    description ? description : "No description available"
+                                }</p>`;
+                            monthList.appendChild(listItem);
+                        });
+                    } else {
+                        monthList.innerHTML = `<li>No tasks for the month</li>`;
+                    }
+                })
+                .catch(error => {
+                    console.error(error);
+                    monthList.innerHTML = `<li>Error loading month plan</li>`;
                 });
         }
+
+
     
         prevWeekBtn.addEventListener('click', () => {
             currentWeekStartDate.setDate(currentWeekStartDate.getDate() - 7);
             fetchWeekPlan(currentWeekStartDate);
         });
-    
+
         nextWeekBtn.addEventListener('click', () => {
             currentWeekStartDate.setDate(currentWeekStartDate.getDate() + 7);
             fetchWeekPlan(currentWeekStartDate);
         });
-    
+
+
         weekBtn.addEventListener('click', () => {
             weekPlan.classList.remove('hidden');
             monthPlan.classList.add('hidden');

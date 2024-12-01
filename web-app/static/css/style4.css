@@ -422,3 +422,115 @@ body {
     font-size: 14px;
     color: gray;
 }
+
+.form-group {
+    display: flex; 
+    gap: 5px; 
+}
+
+.form-group label {
+    width: 30%; 
+    max-width: 30%; 
+    display: block; 
+}
+
+.form-group input {
+    width: 60%; 
+    max-width: 60%; 
+    box-sizing: border-box; 
+    display: block; 
+}
+
+#additional-note {
+    width: 100%; 
+    height: 120px;
+    box-sizing: border-box;
+    resize: vertical;
+    line-height: 1.5; 
+    font-size: 14px;
+    padding:5px;
+}
+
+.back-btn {
+    background-color: rgb(17, 52, 122);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    border-radius: 5px;
+    position: absolute;
+    top: 3vh;
+    left: 5vw;
+    margin-bottom: 20px;
+}
+
+.logout-btn {
+    background-color: rgb(161, 43, 51);
+    color: white;
+    border: none;
+    padding: 10px 20px; 
+    cursor: pointer;
+    font-size: 14px; 
+    border-radius: 5px;
+    margin-top: 20px;
+    display: block;
+    width: 100%;
+    text-align: center;
+}
+
+.track-header {
+    display: flex;
+    grid-template-columns: repeat(7, 1fr); /* 一周7列 */
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.day-header {
+    padding: 10px 0;
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    font-weight: bold;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px; 
+    margin: 20px 0;
+}
+
+.empty-cell {
+    background-color: #e0e0e0;
+    height: 50px;
+    border: 1px solid #ddd;
+}
+
+.calendar-grid div {
+    width: 20px; 
+    height: 20px; 
+    border-radius: 3px; 
+    background-color: #ebedf0;
+    display: inline-block;
+    text-align: center;
+    line-height: 20px;
+    font-size: 10px;
+    color: #333; 
+}
+
+.calendar-grid div[data-intensity="1"] {
+    background-color: #c6e48b; 
+}
+
+.calendar-grid div[data-intensity="2"] {
+    background-color: #7bc96f; 
+}
+
+.calendar-grid div[data-intensity="3"] {
+    background-color: #239a3b; 
+}
+
+.calendar-grid div[data-intensity="4"] {
+    background-color: #196127; 
+}

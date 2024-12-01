@@ -7,56 +7,142 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style4.css') }}">
 </head>
 <body>
-    <!-- Navigation Bar -->
     <nav class="navbar">
         <a href="/todo" class="nav-link">To Do</a>
         <a href="/plan" class="nav-link">Plan</a>
         <a href="/user" class="nav-link clickedNav">User</a>
     </nav>
 
-    <!-- User Profile Container -->
     <div class="user-profile-container">
         <header class="profile-header">
             <h1>User Profile</h1>
             <p>Welcome to your Workout Journey!!!</p>
         </header>
 
-        <!-- Portrait -->
-        <div class="portrait">
-            <div class="portrait-placeholder">
-                <p>Portrait</p>
-            </div>
-        </div>
+        <h2 class="user-name">{{ user.username }}</h2>
 
-        <!-- User Name -->
-        <h2 class="user-name">User Name</h2>
-
-        <!-- Personal Info -->
         <div class="personal-info">
             <h3>Personal Info:</h3>
-            <p>Gender: Male / Female</p>
-            <p>Phone Number: 012-345-6789</p>
-            <p>Email Address: a@gmail.com</p>
+            <p>Name: {{ user.name }}</p>
+            <p>Sex: {{ user.sex }}</p>
+            <p>Height: {{ user.height }} cm</p>
+            <p>Weight: {{ user.weight }} kg</p>
+            <p>Goal Weight: {{ user.goal_weight }} kg</p>
         </div>
 
-        <!-- Workout Track -->
         <div class="workout-track">
-            <div class="track-placeholder">
-                <p>[Workout Track] : A calendar to display the number of days the user has exercised</p>
+            <h3>Workout Calendar</h3>
+            <div class="track-header" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-right: 20px;"> 
+                <div class="day-header">Sun</div>
+                <div class="day-header">Mon</div>
+                <div class="day-header">Tue</div>
+                <div class="day-header">Wed</div>
+                <div class="day-header">Thu</div>
+                <div class="day-header">Fri</div>
+                <div class="day-header">Sat</div>
             </div>
+            <div class="calendar-grid" id="workout-calendar" style="margin-left: 20px"></div>
         </div>
 
-        <!-- Buttons -->
         <div class="profile-buttons">
             <button class="update-profile-btn" onclick="window.location.href='/update';">Update My Profile</button>
-            <button class="check-data-btn" onclick="window.location.href='/data';">Check My Data</button>
+            <button class="generate-plan-btn">Generate Weekly Plan</button>
         </div>
+        <button class="logout-btn" onclick="window.location.href='/logout';">Log Out</button>
 
-        <!-- Footer -->
         <footer class="profile-footer">
             <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et.</p>
             <p>All rights reserved. <a href="#">Privacy policy</a></p>
         </footer>
     </div>
 </body>
+<script>
+    document.querySelector('.generate-plan-btn').addEventListener('click', function() {
+        fetch('/api/generate-weekly-plan', {
+            method: 'POST', 
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert('Weekly plan generated successfully!');
+                console.log('Generated plan:', result.plan); 
+            } else {
+                alert('Failed to generate weekly plan: ' + result.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error generating weekly plan:', error);
+            alert('An error occurred while generating the weekly plan.');
+        });
+    });
+
+
+    // function generateWorkoutCalendar(workoutData) {
+    //     const calendar = document.getElementById("workout-calendar");
+
+    //     const now = new Date();
+    //     const year = now.getFullYear();
+    //     const month = now.getMonth(); 
+    //     const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    //     for (let day = 1; day <= daysInMonth; day++) {
+    //         const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    //         const intensity = workoutData[dateStr] || 0; 
+
+    //         const dayCell = document.createElement("div");
+    //         dayCell.classList.add("day-cell");
+    //         dayCell.setAttribute("data-intensity", intensity);
+    //         dayCell.title = `Date: ${dateStr}\nTasks: ${intensity}`;
+    //         calendar.appendChild(dayCell);
+    //     }
+    // }
+
+    // fetch("/api/workout-data")
+    //     .then((response) => response.json())
+    //     .then((data) => {
+    //         generateWorkoutCalendar(data);
+    //     })
+    //     .catch((error) => console.error("Error fetching workout data:", error));
+    function generateWorkoutCalendar(workoutData) {
+        const calendar = document.getElementById("workout-calendar");
+        const header = document.querySelector(".track-header");
+
+        // 获取当前日期信息
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const firstDayOfWeek = new Date(year, month, 1).getDay(); // 月初是星期几
+
+        // 填充空白格子
+        for (let i = 0; i < firstDayOfWeek; i++) {
+            const emptyCell = document.createElement("div");
+            emptyCell.classList.add("empty-cell");
+            calendar.appendChild(emptyCell);
+        }
+
+        // 填充日历
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+            const intensity = workoutData[dateStr] || 0; // 获取任务强度
+
+            const dayCell = document.createElement("div");
+            dayCell.classList.add("day-cell");
+            dayCell.setAttribute("data-intensity", intensity);
+            dayCell.title = `Date: ${dateStr}\nTasks: ${intensity}`;
+            calendar.appendChild(dayCell);
+        }
+    }
+
+    // 从后端获取数据并生成日历
+    fetch("/api/workout-data")
+        .then((response) => response.json())
+        .then((data) => {
+            generateWorkoutCalendar(data);
+        })
+        .catch((error) => console.error("Error fetching workout data:", error));
+</script>
 </html>
