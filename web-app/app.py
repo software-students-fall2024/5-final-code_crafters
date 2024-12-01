@@ -31,8 +31,8 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 # URL of your db-service
-DB_SERVICE_URL = "http://db-service:5112/"
-#DB_SERVICE_URL = "http://localhost:5112/"
+#DB_SERVICE_URL = "http://db-service:5112/"
+DB_SERVICE_URL = "http://localhost:5112/"
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -339,12 +339,7 @@ def register():
 
         if response.status_code == 200:
             user_data = response.json()
-            if "user_id" in user_data:
-                user = User(
-                    user_id=user_data["user_id"],
-                    username=username
-                )
-                login_user(user)  
+            if "user_id" in user_data: 
 
                 return jsonify({"success": True, "message": "Register successful! Please Login now.", "redirect_url": "/todo"}), 200
 
