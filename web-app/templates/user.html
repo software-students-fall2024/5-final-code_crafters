@@ -31,17 +31,22 @@
         </div>
 
         <div class="workout-track">
-            <div class="track-header">
-                <h3>Workout Calendar</h3>
+            <h3>Workout Calendar</h3>
+            <div class="track-header" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-right: 20px;"> 
+                <div class="day-header">Sun</div>
+                <div class="day-header">Mon</div>
+                <div class="day-header">Tue</div>
+                <div class="day-header">Wed</div>
+                <div class="day-header">Thu</div>
+                <div class="day-header">Fri</div>
+                <div class="day-header">Sat</div>
             </div>
-            <div class="calendar-grid" id="workout-calendar">
-            </div>
+            <div class="calendar-grid" id="workout-calendar" style="margin-left: 20px"></div>
         </div>
 
         <div class="profile-buttons">
             <button class="update-profile-btn" onclick="window.location.href='/update';">Update My Profile</button>
             <button class="generate-plan-btn">Generate Weekly Plan</button>
-            <button class="check-data-btn" onclick="window.location.href='/data';">Check My Data</button>
         </div>
         <button class="logout-btn" onclick="window.location.href='/logout';">Log Out</button>
 
@@ -75,35 +80,69 @@
     });
 
 
+    // function generateWorkoutCalendar(workoutData) {
+    //     const calendar = document.getElementById("workout-calendar");
+
+    //     const now = new Date();
+    //     const year = now.getFullYear();
+    //     const month = now.getMonth(); 
+    //     const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    //     for (let day = 1; day <= daysInMonth; day++) {
+    //         const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    //         const intensity = workoutData[dateStr] || 0; 
+
+    //         const dayCell = document.createElement("div");
+    //         dayCell.classList.add("day-cell");
+    //         dayCell.setAttribute("data-intensity", intensity);
+    //         dayCell.title = `Date: ${dateStr}\nTasks: ${intensity}`;
+    //         calendar.appendChild(dayCell);
+    //     }
+    // }
+
+    // fetch("/api/workout-data")
+    //     .then((response) => response.json())
+    //     .then((data) => {
+    //         generateWorkoutCalendar(data);
+    //     })
+    //     .catch((error) => console.error("Error fetching workout data:", error));
     function generateWorkoutCalendar(workoutData) {
         const calendar = document.getElementById("workout-calendar");
+        const header = document.querySelector(".track-header");
 
-        // 获取当前月份的天数
+        // 获取当前日期信息
         const now = new Date();
         const year = now.getFullYear();
-        const month = now.getMonth(); // 当前月份 (0-11)
+        const month = now.getMonth();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const firstDayOfWeek = new Date(year, month, 1).getDay(); // 月初是星期几
 
-        // 遍历当月的每一天
+        // 填充空白格子
+        for (let i = 0; i < firstDayOfWeek; i++) {
+            const emptyCell = document.createElement("div");
+            emptyCell.classList.add("empty-cell");
+            calendar.appendChild(emptyCell);
+        }
+
+        // 填充日历
         for (let day = 1; day <= daysInMonth; day++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-            const intensity = workoutData[dateStr] || 0; // 默认为 0，无任务
+            const intensity = workoutData[dateStr] || 0; // 获取任务强度
 
-            // 创建格子
             const dayCell = document.createElement("div");
+            dayCell.classList.add("day-cell");
             dayCell.setAttribute("data-intensity", intensity);
             dayCell.title = `Date: ${dateStr}\nTasks: ${intensity}`;
             calendar.appendChild(dayCell);
         }
     }
 
-    // 从后端获取数据
+    // 从后端获取数据并生成日历
     fetch("/api/workout-data")
         .then((response) => response.json())
         .then((data) => {
             generateWorkoutCalendar(data);
         })
         .catch((error) => console.error("Error fetching workout data:", error));
-
 </script>
 </html>
