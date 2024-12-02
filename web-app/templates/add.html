@@ -36,32 +36,69 @@
         <button class="search-btn" onclick="window.location.href='/search';">Search</button>
 
     </div>
+    <div id="date-dialog" class="dialog">
+        <form id="date-form">
+            <label for="selected-date">Select Date:</label>
+            <input type="date" id="selected-date" required>
+            <div class="dialog-buttons">
+                <button type="submit" class="dialog-confirm">Add</button>
+                <button type="button" class="dialog-cancel">Cancel</button>
+            </div>
+        </form>
+    </div>
+
     <script>
         const exercisesLength = {{ exercises_length }};
-    </script>
 
-    <script>
-    document.querySelectorAll('.add-btn').forEach(function(button) {
-        button.addEventListener('click', function() {
-            const exerciseId = this.getAttribute('data-id');
+        const dialog = document.getElementById('date-dialog');
+        const form = document.getElementById('date-form');
+        let selectedExerciseId = null;
 
-            fetch(`/add_exercise?exercise_id=${exerciseId}`, {
+        function closeDialog() {
+            dialog.style.display = 'none';
+            selectedExerciseId = null;
+        }
+
+        function openDialog(exerciseId) {
+            selectedExerciseId = exerciseId;
+            dialog.style.display = 'block';
+        }
+
+        document.querySelectorAll('.add-btn').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const exerciseId = this.getAttribute('data-id');
+                openDialog(exerciseId);
+            });
+        });
+
+        form.addEventListener('submit', function(event) {
+            event.preventDefault(); 
+
+            const selectedDate = document.getElementById('selected-date').value;
+
+            if (!selectedExerciseId || !selectedDate) {
+                alert('Please select a date.');
+                return;
+            }
+
+            fetch(`/add_exercise?exercise_id=${selectedExerciseId}&date=${selectedDate}`, {
                 method: 'POST',
             })
             .then(response => {
                 if (response.ok) {
-                    if (exercisesLength === 1) {
-                        window.location.href = '/todo';
-                    } else {
-                        alert('Exercise added successfully!');
-                    }
+                    alert('Exercise added successfully!');
+                    closeDialog();
                 } else {
                     alert('Failed to add the exercise.');
                 }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while adding the exercise.');
             });
         });
-    });
 
+        document.querySelector('.dialog-cancel').addEventListener('click', closeDialog);
     </script>
 
 </body>
