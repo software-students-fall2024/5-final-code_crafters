@@ -752,8 +752,29 @@ def user_profile():
 @login_required
 def update_profile():
     if request.method == "POST":
-        return redirect(url_for('user_profile'))
-    return render_template('update.html')
+        user_data = request.json
+        try:
+            response = requests.put(
+                f"{DB_SERVICE_URL}/users/update/{current_user.id}",
+                json=user_data
+            )
+            if response.status_code == 200 and response.json().get("success", False):
+                return jsonify({"message": "Profile updated successfully."}), 200
+            return jsonify({"message": "Failed to update profile."}), 500
+        except requests.RequestException as e:
+            print(f"Error updating profile: {e}")
+            return jsonify({"message": "Error updating profile."}), 500
+
+    try:
+        response = requests.get(f"{DB_SERVICE_URL}/users/get/{current_user.id}")
+        if response.status_code == 200:
+            user_data = response.json()
+            return render_template('update.html', user=user_data)
+        else:
+            return render_template('update.html', user={})
+    except requests.RequestException as e:
+        print(f"Error fetching user data: {e}")
+        return render_template('update.html', user={})
 
 
 @app.route('/save-profile', methods=['POST'])
