@@ -175,7 +175,7 @@ def delete_todo_api(exercise_todo_id: int):
         return False
 
 
-def add_todo_api(exercise_id: str, working_time=None, reps=None, weight=None):
+def add_todo_api(exercise_id: str, date: str, working_time=None, reps=None, weight=None):
     """Add a to-do item via the db-service API."""
     exercise = get_exercise(exercise_id)
     if not exercise:
@@ -195,6 +195,7 @@ def add_todo_api(exercise_id: str, working_time=None, reps=None, weight=None):
     }
     data = {
         "user_id": current_user.id,
+        "date": date,
         "exercise_item": exercise_item
     }
     try:
@@ -431,17 +432,22 @@ def add():
 def add_exercise():
     """Adds a new exercise to the user's To-Do list based on its unique ID provided in the request."""
     exercise_id = request.args.get("exercise_id")
+    date = request.args.get("date")
 
     if not exercise_id:
         print("No exercise ID provided")
         return jsonify({"message": "Exercise ID is required"}), 400
 
-    success = add_todo_api(exercise_id)
+    if not date:
+        print("No date provided")
+        return jsonify({"message": "Date is required"}), 400
+
+    success = add_todo_api(exercise_id,date)
 
     if success:
-        print(f"Successfully added exercise with ID: {exercise_id}")
+        print(f"Successfully added exercise with ID: {exercise_id} on date: {date}")
         return jsonify({"message": "Added successfully"}), 200
-    print(f"Failed to add exercise with ID: {exercise_id}")
+    print(f"Failed to add exercise with ID: {exercise_id} on date: {date}")
     return jsonify({"message": "Failed to add"}), 400
 
 @app.route("/delete_exercise")
@@ -644,24 +650,6 @@ def upload_transcription():
         return jsonify({"error": str(e)}), 400
 
 
-week_plan_data = [
-    {"day": "Mon", "task": "Shoulder"},
-    {"day": "Tue", "task": "Leg"},
-    {"day": "Wed", "task": "Arm"},
-    {"day": "Thu", "task": "Chest"},
-    {"day": "Fri", "task": "Arm"},
-    {"day": "Sat", "task": "Shoulder"},
-    {"day": "Sun", "task": "Cardio"},
-]
-
-month_plan_data = [
-    {"week": "1", "description": "Active Recovery"},
-    {"week": "2", "description": "Upper Body Strength Training"},
-    {"week": "3", "description": "Cardio + Core Strength Training"},
-    {"week": "4", "description": "High-intensity Training"},
-]
-
-
 @app.route('/plan', methods=['GET'])
 @login_required
 def get_plan():
@@ -764,7 +752,6 @@ def user_profile():
 @login_required
 def update_profile():
     if request.method == "POST":
-        # Handle profile update logic here
         return redirect(url_for('user_profile'))
     return render_template('update.html')
 
@@ -873,12 +860,11 @@ def get_workout_data():
 
         workout_data = {}
         for todo in todos:
+            record_date = datetime.strptime(todo.get("date"), "%a, %d %b %Y %H:%M:%S %Z").strftime("%Y-%m-%d")
             for item in todo.get("todo", []):
-                date = item.get("time") 
-                if date:
-                    if date not in workout_data:
-                        workout_data[date] = 0
-                    workout_data[date] += 1
+                if record_date not in workout_data:
+                    workout_data[record_date] = 0
+                workout_data[record_date] += 1
 
         print(f"DEBUG: Final workout data: {workout_data}")
         return jsonify(workout_data)

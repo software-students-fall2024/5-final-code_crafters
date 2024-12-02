@@ -1,7 +1,7 @@
 # db_service.py
 from flask import Flask, request, jsonify
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pymongo import MongoClient
 from bson import ObjectId
 import certifi
@@ -109,40 +109,79 @@ def authenticate_user():
 
 @app.route("/todo/get/<string:user_id>", methods=["GET"])
 def get_todo(user_id):
-    todo_data = todo_collection.find({"user_id": user_id})
-    today = datetime.now().date()
-    if todo_data:
-        for data in todo_data:
-            if data["date"].date() == today:
-                data["_id"] = str(data["_id"])
-                
-                for item in data.get("todo", []):
-                    item["exercise_todo_id"] = int(item["exercise_todo_id"])
-                    item["exercise_id"] = str(item["exercise_id"])
-                    if "time" in item and isinstance(item["time"], datetime):
-                        item["time"] = item["time"].strftime("%Y-%m-%d")
-                break
+    """
+    获取用户当天的 To-Do 数据 (仅比较年月日)
+    """
+    try:
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = today_start + timedelta(days=1)
 
-        return jsonify(data), 200
+        print(f"DEBUG: Today start: {today_start}, Today end: {today_end}")
 
-    return jsonify({"error": "Todo not found"}), 404
+        todo_data = todo_collection.find_one({
+            "user_id": user_id,
+            "date": {
+                "$gte": today_start,
+                "$lt": today_end
+            }
+        })
+
+        if todo_data:
+            print(f"DEBUG: Found To-Do data for user {user_id}: {todo_data}")
+
+            todo_data["_id"] = str(todo_data["_id"])
+            
+            for item in todo_data.get("todo", []):
+                print(f"DEBUG: Processing To-Do item: {item}")
+                item["exercise_todo_id"] = int(item["exercise_todo_id"])
+                item["exercise_id"] = str(item["exercise_id"])
+                if "time" in item and isinstance(item["time"], datetime):
+                    item["time"] = item["time"].strftime("%Y-%m-%d")
+            
+            print(f"DEBUG: Final To-Do data for response: {todo_data}")
+            return jsonify(todo_data), 200  
+        print(f"DEBUG: No To-Do data found for user {user_id} on {today_start.date()}")
+        return jsonify({"error": "Todo not found"}), 404
+
+    except Exception as e:
+        print(f"ERROR: Failed to retrieve todos for user {user_id}: {e}")
+        return jsonify({"error": "An error occurred", "message": str(e)}), 500
 
 @app.route("/todo/add", methods=["POST"])
 def add_todo():
     """Add a new todo item to user's list."""
     data = request.json
     user_id = data.get("user_id")
+    date = data.get("date")  # 添加日期字段
     exercise_item = data.get("exercise_item")
 
-    if not user_id or not exercise_item:
-        return jsonify({"error": "user_id and exercise_item are required"}), 400
+    if not user_id or not exercise_item or not date:
+        return jsonify({"error": "user_id, date, and exercise_item are required"}), 400
 
-    result = todo_collection.update_one(
-        {"user_id": user_id},
-        {"$push": {"todo": exercise_item}},
-        upsert=True
-    )
-    return jsonify({"success": result.modified_count > 0}), 200
+    try:
+        parsed_date = datetime.fromisoformat(date).replace(hour=0, minute=0, second=0, microsecond=0)
+
+        existing_todo = todo_collection.find_one({"user_id": user_id, "date": parsed_date})
+
+        if existing_todo:
+            result = todo_collection.update_one(
+                {"_id": existing_todo["_id"]},
+                {"$push": {"todo": exercise_item}}
+            )
+            return jsonify({"success": result.modified_count > 0, "message": "Todo item added to existing entry"}), 200
+        else:
+            new_todo = {
+                "user_id": user_id,
+                "date": parsed_date,
+                "todo": [exercise_item]
+            }
+            todo_collection.insert_one(new_todo)
+            return jsonify({"success": True, "message": "New todo entry created"}), 201
+
+    except Exception as e:
+        print(f"ERROR: Failed to add todo item: {e}")
+        return jsonify({"error": "An error occurred", "message": str(e)}), 500
+
 
 @app.route("/todo/delete/<user_id>/<int:exercise_todo_id>", methods=["DELETE"])
 def delete_todo(user_id, exercise_todo_id):

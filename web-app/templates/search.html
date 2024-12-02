@@ -46,6 +46,16 @@
             <p>All rights reserved. <a href="#">Privacy policy</a></p>
         </footer>
     </div>
+    <div id="date-dialog" class="dialog">
+        <form id="date-form">
+            <label for="selected-date">Select Date:</label>
+            <input type="date" id="selected-date" required>
+            <div class="dialog-buttons">
+                <button type="submit" class="dialog-confirm">Add</button>
+                <button type="button" class="dialog-cancel">Cancel</button>
+            </div>
+        </form>
+    </div>
 
     <script>
         document.getElementById('search-btn').addEventListener('click', function() {
@@ -74,33 +84,12 @@
                 alert('An error occurred while searching for the exercises.');
             });
         });
-        document.querySelectorAll('.add-btn').forEach(function(button) {
-            button.addEventListener('click', function() {
-                const exerciseId = this.getAttribute('data-id');
-
-                fetch(`/add_exercise?exercise_id=${exerciseId}`, {
-                    method: 'POST',
-                })
-                .then(response => {
-                    if (response.ok) {
-                        alert('Exercise added successfully!');  
-                    } else {
-                        alert('Failed to add the exercise.');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred while adding the exercise.');
-                });
-            });
-        });
-
+        
 
         
     let mediaRecorder;
     let audioChunks = [];
 
-    // Start recording
     document.getElementById('start-recording-btn').addEventListener('click', async () => {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             try {
@@ -116,7 +105,6 @@
                     const formData = new FormData();
                     formData.append('audio', audioBlob, 'recording.wav');
 
-                    // Send the audio file to the server
                     try {
                         const response = await fetch('/upload-audio', {
                             method: 'POST',
@@ -124,7 +112,6 @@
                         });
                         const result = await response.json();
                         
-                        // 将转录文本填入搜索框
                         if (result.transcription) {
                             document.getElementById('query').value = result.transcription;
                         } else {
@@ -135,7 +122,6 @@
                         alert('Failed to upload the audio for transcription.');
                     }
 
-                    // Reset audioChunks for next recording
                     audioChunks = [];
                 };
 
@@ -150,7 +136,6 @@
         }
     });
 
-    // Stop recording
     document.getElementById('stop-recording-btn').addEventListener('click', () => {
         if (mediaRecorder) {
             mediaRecorder.stop();
@@ -158,6 +143,58 @@
             document.getElementById('stop-recording-btn').disabled = true;
         }
     });
+
+
+
+        const dialog = document.getElementById('date-dialog');
+        const form = document.getElementById('date-form');
+        let selectedExerciseId = null;
+
+        function closeDialog() {
+            dialog.style.display = 'none';
+            selectedExerciseId = null;
+        }
+
+        function openDialog(exerciseId) {
+            selectedExerciseId = exerciseId;
+            dialog.style.display = 'block';
+        }
+
+        document.querySelectorAll('.add-btn').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const exerciseId = this.getAttribute('data-id');
+                openDialog(exerciseId);
+            });
+        });
+
+        form.addEventListener('submit', function(event) {
+            event.preventDefault(); 
+
+            const selectedDate = document.getElementById('selected-date').value;
+
+            if (!selectedExerciseId || !selectedDate) {
+                alert('Please select a date.');
+                return;
+            }
+
+            fetch(`/add_exercise?exercise_id=${selectedExerciseId}&date=${selectedDate}`, {
+                method: 'POST',
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert('Exercise added successfully!');
+                    closeDialog();
+                } else {
+                    alert('Failed to add the exercise.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while adding the exercise.');
+            });
+        });
+
+        document.querySelector('.dialog-cancel').addEventListener('click', closeDialog);
     </script>
 </body>
 </html>
