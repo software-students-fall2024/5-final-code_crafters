@@ -520,17 +520,71 @@ body {
 }
 
 .calendar-grid div[data-intensity="1"] {
-    background-color: #c6e48b; 
+    background-color: #d6f5d6; 
 }
 
 .calendar-grid div[data-intensity="2"] {
-    background-color: #7bc96f; 
+    background-color: #adebad; 
 }
 
 .calendar-grid div[data-intensity="3"] {
-    background-color: #239a3b; 
+    background-color: #85e085; 
 }
 
 .calendar-grid div[data-intensity="4"] {
+    background-color: #5cd65c; 
+}
+
+.calendar-grid div[data-intensity="5"] {
+    background-color: #33cc33;
+}
+
+.calendar-grid div[data-intensity="6"] {
+    background-color: #239a3b; 
+}
+
+.calendar-grid div[data-intensity="7"] {
     background-color: #196127; 
+}
+
+
+
+.hidden {
+    display: none;
+}
+
+.modal {
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+.modal-content {
+    background-color: #fff;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 400px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.close-btn {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close-btn:hover,
+.close-btn:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
 }
