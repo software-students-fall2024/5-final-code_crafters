@@ -17,7 +17,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.exceptions import BadRequest
 from dotenv import load_dotenv
 from zoneinfo import ZoneInfo
-
+import pytz
 
 load_dotenv()
 
@@ -745,6 +745,7 @@ def get_month_plan():
         print(f"ERROR: Failed to generate month plan: {e}")
         return jsonify({"error": "An error occurred", "message": str(e)}), 500
 
+
 @app.route('/user')
 @login_required
 def user_profile():
@@ -824,6 +825,9 @@ def save_profile():
 @login_required
 def generate_weekly_plan():
     """Generate a weekly plan based on the current user's data."""
+
+    date = datetime.now()
+
     try:
         user_id = current_user.id
 
@@ -856,9 +860,11 @@ def generate_weekly_plan():
 
         if response.status_code == 200:
             ml_response = response.json()
+            add_plan(date, ml_response)
             return jsonify({"success": True, "plan": ml_response}), 200
         else:
             return jsonify({"success": False, "message": "Failed to generate plan"}), 500
+        
 
     except requests.exceptions.RequestException as e:
         print(f"Error communicating with ML Client: {e}")
@@ -867,6 +873,27 @@ def generate_weekly_plan():
     except Exception as e:
         print(f"Error generating plan: {e}")
         return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
+def add_plan(date, plan: dict):
+    """
+    Add generated plan to todo list.
+    """
+    
+    plan_list = []
+
+    for key, val in plan.items():
+        if key != "Explaining":
+            plan_list.append(val)
+
+    i = 0
+    for day_plan in plan_list:
+        target_day = date + timedelta(days=i)
+        i += 1
+        for exercise in day_plan:
+            exercise_id = search_exercise(exercise)[0]["_id"]
+            add_todo_api(exercise_id, target_day)
+    
 
 
 @app.route("/api/workout-data", methods=["GET"])
