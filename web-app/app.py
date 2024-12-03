@@ -17,7 +17,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.exceptions import BadRequest
 from dotenv import load_dotenv
 from zoneinfo import ZoneInfo
-import pytz
+
 
 load_dotenv()
 
@@ -888,13 +888,15 @@ def add_plan(date, plan: dict):
 
     i = 0
     for day_plan in plan_list:
-        target_day = date + timedelta(days=i)
+        target_date = date + timedelta(days=i)
+        formatted_date = target_date.strftime('%Y-%m-%d')
         i += 1
         for exercise in day_plan:
-            exercise_id = search_exercise(exercise)[0]["_id"]
-            add_todo_api(exercise_id, target_day)
+            exercise_ids = search_exercise(exercise)
+            if len(exercise_ids) > 0:
+                exercise_id = exercise_ids[0]["_id"]
+                add_todo_api(exercise_id, formatted_date)
     
-
 
 @app.route("/api/workout-data", methods=["GET"])
 @login_required
