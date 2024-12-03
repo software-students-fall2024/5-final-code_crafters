@@ -46,7 +46,7 @@ def make_plan_request(input):
     "response_schema": content.Schema(
         type = content.Type.OBJECT,
         enum = [],
-        required = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+        required = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday", "Explaining"],
         properties = {
         "Monday": content.Schema(
             type = content.Type.ARRAY,
