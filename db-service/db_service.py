@@ -55,7 +55,6 @@ def add_or_skip_todo(user_id):
         print(f"ERROR: Failed to add or skip To-Do entry: {e}")
         return {"message": "An error occurred", "error": str(e)}
 
-
 @app.route("/users/get/<user_id>", methods=["GET"])
 def get_user(user_id):
     """Retrieve user information by ID."""
@@ -149,38 +148,99 @@ def get_todo(user_id):
 
 @app.route("/todo/add", methods=["POST"])
 def add_todo():
-    """Add a new todo item to user's list."""
+    """
+    Add a new todo item to the user's list.
+    如果记录不存在，直接创建新记录；如果存在，直接更新。
+    """
     data = request.json
+    print(f"DEBUG: Received data: {data}")  # Debug 输入数据
+
     user_id = data.get("user_id")
-    date = data.get("date")  # 添加日期字段
     exercise_item = data.get("exercise_item")
+    date = data.get("date")  # 日期字段（格式为 "YYYY-MM-DD"）
 
     if not user_id or not exercise_item or not date:
+        print(f"ERROR: Missing required fields - user_id: {user_id}, exercise_item: {exercise_item}, date: {date}")
         return jsonify({"error": "user_id, date, and exercise_item are required"}), 400
 
     try:
-        parsed_date = datetime.fromisoformat(date).replace(hour=0, minute=0, second=0, microsecond=0)
+        # 解析日期
+        target_date = datetime.strptime(date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
+        print(f"DEBUG: Parsed target_date: {target_date}")
 
-        existing_todo = todo_collection.find_one({"user_id": user_id, "date": parsed_date})
+        # 查找是否已存在当天的记录
+        existing_todo = todo_collection.find_one({
+            "user_id": user_id,
+            "date": {
+                "$gte": target_date,
+                "$lt": target_date + timedelta(days=1)
+            }
+        })
+        print(f"DEBUG: Existing todo record: {existing_todo}")
 
         if existing_todo:
+            # 如果记录存在，更新 todo 列表
+            print(f"DEBUG: Updating existing todo for user_id: {user_id}, date: {target_date}")
             result = todo_collection.update_one(
                 {"_id": existing_todo["_id"]},
                 {"$push": {"todo": exercise_item}}
             )
-            return jsonify({"success": result.modified_count > 0, "message": "Todo item added to existing entry"}), 200
+            success = result.modified_count > 0
+            message = "New todo item added to existing entry" if success else "Failed to add todo item"
+            print(f"DEBUG: Update result - success: {success}, modified_count: {result.modified_count}")
         else:
+            # 如果记录不存在，创建新记录
+            print(f"DEBUG: Creating new todo entry for user_id: {user_id}, date: {target_date}")
             new_todo = {
                 "user_id": user_id,
-                "date": parsed_date,
+                "date": target_date,
                 "todo": [exercise_item]
             }
-            todo_collection.insert_one(new_todo)
-            return jsonify({"success": True, "message": "New todo entry created"}), 201
+            result = todo_collection.insert_one(new_todo)
+            success = result.inserted_id is not None
+            message = "New todo entry created" if success else "Failed to create new todo entry"
+            print(f"DEBUG: Insert result - success: {success}, inserted_id: {result.inserted_id if success else None}")
+
+        return jsonify({"success": success, "message": message}), 200 if success else 400
 
     except Exception as e:
         print(f"ERROR: Failed to add todo item: {e}")
         return jsonify({"error": "An error occurred", "message": str(e)}), 500
+
+# @app.route("/todo/add", methods=["POST"])
+# def add_todo():
+#     """Add a new todo item to user's list."""
+#     data = request.json
+#     user_id = data.get("user_id")
+#     date = data.get("date")  # 添加日期字段
+#     exercise_item = data.get("exercise_item")
+
+#     if not user_id or not exercise_item or not date:
+#         return jsonify({"error": "user_id, date, and exercise_item are required"}), 400
+
+#     try:
+#         parsed_date = datetime.fromisoformat(date).replace(hour=0, minute=0, second=0, microsecond=0)
+
+#         existing_todo = todo_collection.find_one({"user_id": user_id, "date": parsed_date})
+
+#         if existing_todo:
+#             result = todo_collection.update_one(
+#                 {"_id": existing_todo["_id"]},
+#                 {"$push": {"todo": exercise_item}}
+#             )
+#             return jsonify({"success": result.modified_count > 0, "message": "Todo item added to existing entry"}), 200
+#         else:
+#             new_todo = {
+#                 "user_id": user_id,
+#                 "date": parsed_date,
+#                 "todo": [exercise_item]
+#             }
+#             todo_collection.insert_one(new_todo)
+#             return jsonify({"success": True, "message": "New todo entry created"}), 201
+
+#     except Exception as e:
+#         print(f"ERROR: Failed to add todo item: {e}")
+#         return jsonify({"error": "An error occurred", "message": str(e)}), 500
 
 
 @app.route("/todo/delete/<user_id>/<int:exercise_todo_id>", methods=["DELETE"])
