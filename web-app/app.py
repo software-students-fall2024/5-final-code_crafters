@@ -31,8 +31,8 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 # URL of your db-service
-#DB_SERVICE_URL = "http://db-service:5112/"
-DB_SERVICE_URL = "http://localhost:5112/"
+DB_SERVICE_URL = "http://db-service:5112/"
+#DB_SERVICE_URL = "http://localhost:5112/"
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -657,7 +657,6 @@ def get_plan():
     current_date = datetime.now(ZoneInfo("America/New_York"))
     return render_template('plan.html', current_date=current_date)
 
-
 @app.route('/plan/week', methods=['GET'])
 @login_required
 def get_week_plan():
@@ -668,73 +667,83 @@ def get_week_plan():
     if not start_date or not end_date:
         return jsonify({"error": "start_date and end_date are required!"}), 400
 
-    start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
-    end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
+    try:
+        response = requests.get(
+            f"{DB_SERVICE_URL}/todo/get_by_date/{current_user.id}",
+            params={"start_date": start_date, "end_date": end_date}
+        )
+        if response.status_code != 200:
+            return jsonify({"error": "Failed to get todo list"}), 500
 
-    response = requests.get(f"{DB_SERVICE_URL}/todo/get/{current_user.id}")
-    if response.status_code != 200:
-        return jsonify({"error": "Failed to get todo list"}), 500
+        todos = response.json()
+        print(f"DEBUG: Todos received for date range: {todos}")
 
-    user_todo = response.json()
-    if not user_todo or "todo" not in user_todo:
-        return jsonify({})
+        week_plan_data = {}
+        for todo in todos:
+            date = todo["date"]
+            tasks = [task["workout_name"] for task in todo.get("todo", [])][:3]
+            week_plan_data[date] = tasks
 
-    todos = user_todo["todo"]
-    week_plan_data = {}
-    current_date = start_date_dt
-    while current_date <= end_date_dt:
-        day_tasks = [
-            task["workout_name"]
-            for task in todos
-            if "time" in task and datetime.fromisoformat(task["time"]).date() == current_date.date()
-        ][:3]
-        week_plan_data[current_date.strftime("%Y-%m-%d")] = day_tasks
-        current_date += timedelta(days=1)
+        return jsonify(week_plan_data)
 
-    return jsonify(week_plan_data)
-
+    except Exception as e:
+        print(f"ERROR: Failed to get week plan: {e}")
+        return jsonify({"error": "An error occurred", "message": str(e)}), 500
 
 @app.route('/plan/month', methods=['GET'])
 @login_required
 def get_month_plan():
-    """Fetch month plan data."""
-    month = request.args.get("month")
+    """
+    Fetch month plan data based on 'date' field, not 'time'.
+    """
+    month = request.args.get("month") 
 
     if not month:
         return jsonify({"error": "month is required!"}), 400
 
-    start_of_month = datetime.strptime(month + "-01", "%Y-%m-%d")
-    next_month = (start_of_month.replace(day=28) + timedelta(days=4)).replace(day=1)
-    end_of_month = next_month - timedelta(days=1)
+    try:
+        start_of_month = datetime.strptime(month + "-01", "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
+        next_month = (start_of_month.replace(day=28) + timedelta(days=4)).replace(day=1)
+        end_of_month = next_month - timedelta(days=1)
 
-    response = requests.get(f"{DB_SERVICE_URL}/todo/get/{current_user.id}")
-    if response.status_code != 200:
-        return jsonify({"error": "Failed to get todo list"}), 500
+        response = requests.get(
+            f"{DB_SERVICE_URL}/todo/get_by_date/{current_user.id}",
+            params={"start_date": start_of_month.strftime("%Y-%m-%d"), "end_date": end_of_month.strftime("%Y-%m-%d")}
+        )
 
-    user_todo = response.json()
-    if not user_todo or "todo" not in user_todo:
-        return jsonify({})
+        if response.status_code != 200:
+            print(f"ERROR: Failed to fetch todos, status: {response.status_code}")
+            return jsonify({"error": "Failed to get todo list"}), 500
 
-    todos = user_todo["todo"]
-    month_plan_data = {}
-    for week_start in range(0, (end_of_month - start_of_month).days + 1, 7):
-        week_start_date = start_of_month + timedelta(days=week_start)
-        week_end_date = week_start_date + timedelta(days=6)
+        todos = response.json()
+        print(f"DEBUG: Todos received: {todos}")
 
-        week_tasks = [
-            task["workout_name"]
-            for task in todos
-            if "time" in task and week_start_date.date() <= datetime.fromisoformat(task["time"]).date() <= week_end_date.date()
-        ]
+        month_plan_data = {}
+        current_date = start_of_month
+        while current_date <= end_of_month:
+            week_start_date = current_date
+            week_end_date = min(current_date + timedelta(days=6), end_of_month)
 
-        if week_tasks:
-            most_frequent_workout = max(set(week_tasks), key=week_tasks.count)
-            month_plan_data[week_start_date.strftime("%Y-%m-%d")] = most_frequent_workout
-        else:
-            month_plan_data[week_start_date.strftime("%Y-%m-%d")] = None
+            week_tasks = [
+                task["workout_name"]
+                for todo in todos
+                if "date" in todo and week_start_date <= datetime.strptime(todo["date"], "%Y-%m-%d") <= week_end_date
+                for task in todo.get("todo", [])
+            ]
 
-    return jsonify(month_plan_data)
+            if week_tasks:
+                most_frequent_workout = max(set(week_tasks), key=week_tasks.count)
+                month_plan_data[week_start_date.strftime("%Y-%m-%d")] = most_frequent_workout
+            else:
+                month_plan_data[week_start_date.strftime("%Y-%m-%d")] = None
 
+            current_date += timedelta(days=7)
+
+        return jsonify(month_plan_data)
+
+    except Exception as e:
+        print(f"ERROR: Failed to generate month plan: {e}")
+        return jsonify({"error": "An error occurred", "message": str(e)}), 500
 
 @app.route('/user')
 @login_required

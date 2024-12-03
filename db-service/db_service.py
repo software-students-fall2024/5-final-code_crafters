@@ -399,6 +399,42 @@ def get_todos(user_id):
         print(f"ERROR: Failed to retrieve todos for user {user_id}: {e}")
         return jsonify({"error": "Failed to retrieve todos"}), 500
 
+@app.route("/todo/get_by_date/<string:user_id>", methods=["GET"])
+def get_todo_by_date(user_id):
+    """
+    获取用户在特定日期范围内的 To-Do 数据。
+    """
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+
+    if not start_date or not end_date:
+        return jsonify({"error": "start_date and end_date are required"}), 400
+
+    try:
+        # 解析日期范围
+        start_date_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # 查询范围内的记录
+        todos = list(todo_collection.find({
+            "user_id": user_id,
+            "date": {
+                "$gte": start_date_dt,
+                "$lt": end_date_dt + timedelta(days=1)
+            }
+        }))
+
+        # 转换 _id 和 date 为字符串
+        for todo in todos:
+            todo["_id"] = str(todo["_id"])
+            todo["date"] = todo["date"].strftime("%Y-%m-%d")
+
+        return jsonify(todos), 200
+
+    except Exception as e:
+        print(f"ERROR: Failed to get todos by date for user {user_id}: {e}")
+        return jsonify({"error": "An error occurred", "message": str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5112, debug=True)
