@@ -7,25 +7,22 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style4.css') }}">
 </head>
 <body>
-    <!-- Navigation Bar -->
     <nav class="navbar">
         <a href="/todo">To Do</a>
         <a href="/plan"  class="clickedNav">Plan</a>
         <a href="/user" >User</a>
     </nav>
 
-    <!-- Plan Container -->
     <div class="plan-container">
         <header class="plan-header">
             <h1>Week Plan</h1>
-            <p class="current-status">Current Status: Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+            <p class="current-status">Here's your personalized plan to keep you motivated and on track. </p>
             <div class="plan-switch">
                 <button id="week-btn" class="active">Week</button>
                 <button id="month-btn">Month</button>
             </div>
         </header>
 
-        <!-- Week Plan Section -->
         <section id="week-plan" class="plan-section">
             <div class="navigation">
                 <button class="prev-btn">Previous</button>
@@ -64,26 +61,28 @@
         const prevWeekBtn = document.querySelector('.prev-btn');
         const nextWeekBtn = document.querySelector('.next-btn');
     
-        const currentWeekStartDate = getMonday(new Date());
+        const currentWeekStartDate = getSunday(new Date());
         let currentMonth = new Date().toISOString().slice(0, 7);
-        
-        function getMonday(date) {
-            const day = date.getDay(); 
-            const diff = day === 0 ? -6 : 1 - day; 
-            const monday = new Date(date);
-            monday.setDate(date.getDate() + diff);
-            return monday;
+
+        function getSunday(date) {
+            const utcDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000); 
+            const day = utcDate.getUTCDay(); 
+            const diff = day === 0 ? 0 : -day; 
+            utcDate.setUTCDate(utcDate.getUTCDate() + diff); 
+            return utcDate; 
         }
 
         function fetchWeekPlan(currentDate) {
-            const start = getMonday(currentDate); 
+            const start = getSunday(currentDate); 
             const end = new Date(start);
-            end.setDate(start.getDate() + 6); 
+            end.setUTCDate(start.getUTCDate() + 6); 
 
             const startStr = start.toISOString().split('T')[0];
             const endStr = end.toISOString().split('T')[0];
 
-            const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+            console.log(`Fetching week plan: Start Date - ${startStr}, End Date - ${endStr}`); 
+
+            const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
             fetch(`/plan/week?start_date=${startStr}&end_date=${endStr}`)
                 .then(response => {
@@ -113,7 +112,7 @@
                             `;
                         weekList.appendChild(listItem);
 
-                        currentDay.setDate(currentDay.getDate() + 1);
+                        currentDay.setUTCDate(currentDay.getUTCDate() + 1); 
                     });
                 })
                 .catch(error => {
@@ -148,7 +147,7 @@
                                 <span>Week ${weekIndex++}</span>
                                 <small>${startStr} - ${endStr}</small>
                             </div>
-                                <p>Weekly Plan: ${
+                                <p>${
                                     description ? description : "<div style='color: gray; font-style: italic;'>No description</div>"
                                 }</p>`;
                             monthList.appendChild(listItem);
