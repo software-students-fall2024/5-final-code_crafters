@@ -20,7 +20,7 @@ exercises_collection = db["exercises"]
 users_collection = db["users"]
 search_history_collection = db["search_history"]
 edit_transcription_collection = db["edit_transcription"]
-
+plan_collection = db["plans"]
 
 def add_or_skip_todo(user_id):
     """
@@ -153,22 +153,20 @@ def add_todo():
     如果记录不存在，直接创建新记录；如果存在，直接更新。
     """
     data = request.json
-    print(f"DEBUG: Received data: {data}")  # Debug 输入数据
+    #print(f"DEBUG: Received data: {data}")  
 
     user_id = data.get("user_id")
     exercise_item = data.get("exercise_item")
-    date = data.get("date")  # 日期字段（格式为 "YYYY-MM-DD"）
+    date = data.get("date")  
 
     if not user_id or not exercise_item or not date:
-        print(f"ERROR: Missing required fields - user_id: {user_id}, exercise_item: {exercise_item}, date: {date}")
+        #print(f"ERROR: Missing required fields - user_id: {user_id}, exercise_item: {exercise_item}, date: {date}")
         return jsonify({"error": "user_id, date, and exercise_item are required"}), 400
 
     try:
-        # 解析日期
         target_date = datetime.strptime(date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
-        print(f"DEBUG: Parsed target_date: {target_date}")
+        #print(f"DEBUG: Parsed target_date: {target_date}")
 
-        # 查找是否已存在当天的记录
         existing_todo = todo_collection.find_one({
             "user_id": user_id,
             "date": {
@@ -206,42 +204,6 @@ def add_todo():
     except Exception as e:
         print(f"ERROR: Failed to add todo item: {e}")
         return jsonify({"error": "An error occurred", "message": str(e)}), 500
-
-# @app.route("/todo/add", methods=["POST"])
-# def add_todo():
-#     """Add a new todo item to user's list."""
-#     data = request.json
-#     user_id = data.get("user_id")
-#     date = data.get("date")  # 添加日期字段
-#     exercise_item = data.get("exercise_item")
-
-#     if not user_id or not exercise_item or not date:
-#         return jsonify({"error": "user_id, date, and exercise_item are required"}), 400
-
-#     try:
-#         parsed_date = datetime.fromisoformat(date).replace(hour=0, minute=0, second=0, microsecond=0)
-
-#         existing_todo = todo_collection.find_one({"user_id": user_id, "date": parsed_date})
-
-#         if existing_todo:
-#             result = todo_collection.update_one(
-#                 {"_id": existing_todo["_id"]},
-#                 {"$push": {"todo": exercise_item}}
-#             )
-#             return jsonify({"success": result.modified_count > 0, "message": "Todo item added to existing entry"}), 200
-#         else:
-#             new_todo = {
-#                 "user_id": user_id,
-#                 "date": parsed_date,
-#                 "todo": [exercise_item]
-#             }
-#             todo_collection.insert_one(new_todo)
-#             return jsonify({"success": True, "message": "New todo entry created"}), 201
-
-#     except Exception as e:
-#         print(f"ERROR: Failed to add todo item: {e}")
-#         return jsonify({"error": "An error occurred", "message": str(e)}), 500
-
 
 @app.route("/todo/delete/<user_id>/<int:exercise_todo_id>", methods=["DELETE"])
 def delete_todo(user_id, exercise_todo_id):
@@ -411,11 +373,9 @@ def get_todo_by_date(user_id):
         return jsonify({"error": "start_date and end_date are required"}), 400
 
     try:
-        # 解析日期范围
         start_date_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
         end_date_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
 
-        # 查询范围内的记录
         todos = list(todo_collection.find({
             "user_id": user_id,
             "date": {
@@ -424,7 +384,6 @@ def get_todo_by_date(user_id):
             }
         }))
 
-        # 转换 _id 和 date 为字符串
         for todo in todos:
             todo["_id"] = str(todo["_id"])
             todo["date"] = todo["date"].strftime("%Y-%m-%d")
@@ -434,6 +393,84 @@ def get_todo_by_date(user_id):
     except Exception as e:
         print(f"ERROR: Failed to get todos by date for user {user_id}: {e}")
         return jsonify({"error": "An error occurred", "message": str(e)}), 500
+
+@app.route('/plan/save', methods=['POST'])
+def save_plan():
+    """
+    保存计划到数据库
+    """
+    try:
+        data = request.json
+        user_id = data.get("user_id")
+        plan_data = data.get("plan")
+
+        if not user_id or not plan_data:
+            return jsonify({"success": False, "message": "user_id and plan data are required"}), 400
+
+        date = datetime.utcnow().strftime("%Y-%m-%d")
+
+        plan_entry = {
+            "user_id": user_id,
+            "date": date,  
+            "plan": plan_data
+        }
+        plan_collection.insert_one(plan_entry)
+
+        return jsonify({"success": True, "message": "Plan saved successfully"}), 201
+
+    except Exception as e:
+        print(f"Error saving plan: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/todo/delete_exercise', methods=['POST'])
+def delete_exercise_from_date():
+    """
+    根据用户 ID 和日期从数据库中删除指定的 exercise_id
+    """
+    data = request.json
+    user_id = data.get("user_id")  # 用户 ID
+    date = data.get("date")  # 日期
+    exercise_id = data.get("exercise_id")  # 待删除的 exercise_id
+
+    # 检查必要参数
+    if not user_id or not date or not exercise_id:
+        print("DEBUG: Missing user_id, date, or exercise_id in request")
+        return jsonify({"success": False, "message": "user_id, date, and exercise_id are required"}), 400
+
+    try:
+        # 转换日期格式为标准 UTC 日期
+        target_date = datetime.strptime(date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # 调试输出：尝试查找用户的 To-Do 项目
+        print(f"DEBUG: Looking up todos for User ID: {user_id}, Date: {target_date}")
+
+        # 查询数据库以获取指定日期的 To-Do 列表
+        user_todo = todo_collection.find_one({"user_id": user_id, "date": target_date})
+
+        if not user_todo:
+            print(f"DEBUG: No todos found for User ID: {user_id} on Date: {target_date}")
+            return jsonify({"success": False, "message": "No todos found for the specified date"}), 404
+
+        # 调试输出：打印完整的 To-Do 列表
+        print(f"DEBUG: Found todos: {user_todo['todo']}")
+
+        # 删除匹配的 exercise_id
+        result = todo_collection.update_one(
+            {"user_id": user_id, "date": target_date},
+            {"$pull": {"todo": {"exercise_todo_id": exercise_id}}}
+        )
+
+        # 检查是否删除成功
+        if result.modified_count > 0:
+            print(f"DEBUG: Successfully deleted exercise. User ID: {user_id}, Exercise ID: {exercise_id}")
+            return jsonify({"success": True, "message": "Exercise deleted successfully"}), 200
+
+        print(f"DEBUG: Exercise ID: {exercise_id} not found in User ID: {user_id}'s todo list for Date: {target_date}")
+        return jsonify({"success": False, "message": "Exercise not found"}), 404
+
+    except Exception as e:
+        print(f"ERROR: Exception occurred while deleting exercise. Error: {str(e)}")
+        return jsonify({"success": False, "message": f"An error occurred: {str(e)}"}), 500
 
 
 if __name__ == "__main__":

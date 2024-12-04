@@ -17,6 +17,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.exceptions import BadRequest
 from dotenv import load_dotenv
 from zoneinfo import ZoneInfo
+import uuid
 
 
 load_dotenv()
@@ -185,7 +186,7 @@ def add_todo_api(exercise_id: str, date: str, working_time=None, reps=None, weig
     utc_time = eastern_time.astimezone(ZoneInfo("UTC"))
     
     exercise_item = {
-        "exercise_todo_id": int(datetime.now().timestamp()),  # Unique ID
+        "exercise_todo_id": str(uuid.uuid4()),
         "exercise_id": exercise_id,
         "workout_name": exercise["workout_name"],
         "working_time": working_time,
@@ -806,7 +807,7 @@ def save_profile():
         "goal_weight",
         "fat_rate",
         "goal_fat_rate",
-        "additional_notes",
+        "additional_note",
     ]
     update_fields = {key: value for key, value in data.items() if key in allowed_fields}
 
@@ -935,6 +936,157 @@ def get_workout_data():
         print(f"ERROR: Unexpected error: {e}")
         return jsonify({"error": "Failed to retrieve workout data"}), 500
 
+
+@app.route('/api/plan/save', methods=['POST'])
+@login_required
+def save_plan():
+    """
+    保存计划到数据库服务
+    """
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "message": "No data provided"}), 400
+
+        plan_data = data.get("plan")
+        if not plan_data:
+            return jsonify({"success": False, "message": "Plan data is required"}), 400
+
+        response = requests.post(f"{DB_SERVICE_URL}/plan/save", json={
+            "user_id": current_user.id,
+            "plan": plan_data
+        })
+
+        if response.status_code == 200:
+            return response.json(), 200
+        return response.json(), response.status_code
+    except requests.RequestException as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+from datetime import datetime
+
+@app.route('/todo/view', methods=['GET'])
+@login_required
+def view_todo():
+    """
+    Render the To-Do list page for a specific date using db-service.
+    """
+    date_param = request.args.get('date')
+    if not date_param:
+        return jsonify({"error": "Date parameter is required"}), 400
+
+    try:
+        raw_date = datetime.strptime(date_param, "%Y-%m-%d")
+        formatted_date = raw_date.strftime("%A, %B %d, %Y") 
+
+        response = requests.get(f"{DB_SERVICE_URL}/todo/get_by_date/{current_user.id}", params={"start_date": date_param, "end_date": date_param})
+        
+        if response.status_code != 200:
+            return jsonify({"error": f"Failed to fetch data from db-service: {response.status_code}"}), 500
+
+        todos = response.json()
+        exercise_list = [
+            {
+                "exercise_todo_id": todo.get("exercise_todo_id"),
+                "workout_name": todo.get("workout_name")
+            }
+            for entry in todos for todo in entry.get("todo", [])
+        ]
+
+        return render_template("todo_date.html", date=formatted_date, exercises=exercise_list)
+
+    except requests.RequestException as e:
+        return jsonify({"error": f"Failed to communicate with db-service: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+
+from datetime import datetime
+
+@app.route("/todo/delete_by_date", methods=["GET"])
+@login_required
+def delete_todo_by_date():
+    """
+    Render a page to delete To-Do items for a specific date using db-service.
+    """
+    date_param = request.args.get("date")
+
+    try:
+        raw_date = datetime.strptime(date_param, "%A, %B %d, %Y") 
+        formatted_date = raw_date.strftime("%Y-%m-%d")
+    except ValueError:
+        return render_template(
+            "delete_date.html",
+            date=date_param,
+            exercises=[],
+            message="Invalid date format. Please provide a valid date."
+        )
+
+    response = requests.get(
+        f"{DB_SERVICE_URL}/todo/get_by_date/{current_user.id}",
+        params={"start_date": formatted_date, "end_date": formatted_date}
+    )
+
+    if response.status_code != 200:
+        return render_template(
+            "delete_date.html",
+            date=date_param,
+            exercises=[],
+            message="Failed to fetch data from the database service."
+        )
+
+    todos = response.json()
+    exercises = [
+        {
+            "exercise_todo_id": todo.get("exercise_todo_id"),
+            "workout_name": todo.get("workout_name")
+        }
+        for entry in todos for todo in entry.get("todo", [])
+    ]
+
+    return render_template(
+        "delete_date.html",
+        date=date_param,
+        exercises=exercises,
+        message=f"Tasks for {date_param} are listed below."
+    )
+
+@app.route('/api/exercise/delete', methods=['POST'])
+@login_required
+def delete_exercise_by_date():
+    """
+    根据日期和 exercise_id 删除指定的 To-Do 项目
+    """
+    data = request.json
+    date = data.get("date")  
+    exercise_id = data.get("exercise_id") 
+    raw_date = datetime.strptime(date, "%A, %B %d, %Y") 
+    formatted_date = raw_date.strftime("%Y-%m-%d")
+    if not date or not exercise_id:
+        print("DEBUG: Missing date or exercise_id in request")
+        return jsonify({"success": False, "message": "Both date and exercise_id are required"}), 400
+
+    try:
+        print(f"DEBUG: Received request to delete exercise. Date: {formatted_date}, Exercise ID: {exercise_id}, User ID: {current_user.id}")
+
+        response = requests.post(
+            f"{DB_SERVICE_URL}/todo/delete_exercise",
+            json={
+                "user_id": current_user.id,
+                "date": formatted_date,
+                "exercise_id": exercise_id
+            }
+        )
+
+        if response.status_code == 200:
+            print(f"DEBUG: Successfully deleted exercise. Response: {response.json()}")
+            return jsonify({"success": True, "message": "Exercise deleted successfully"}), 200
+        else:
+            print(f"ERROR: Failed to delete exercise. Status Code: {response.status_code}, Response: {response.text}")
+            return jsonify({"success": False, "message": "Failed to delete exercise"}), response.status_code
+
+    except requests.RequestException as e:
+        print(f"ERROR: Communication error with db-service: {str(e)}")
+        return jsonify({"success": False, "message": f"Error communicating with db-service: {str(e)}"}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
