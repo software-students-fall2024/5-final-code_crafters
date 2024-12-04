@@ -54,6 +54,14 @@
             <p>All rights reserved. <a href="#">Privacy policy</a></p>
         </footer>
     </div>
+    <div id="plan-dialogue" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Weekly Plan Generated Successfully!</h2>
+            <p id="plan-description"></p>
+        </div>
+    </div>
+    
 </body>
 <script>
     document.querySelector('.generate-plan-btn').addEventListener('click', function() {
@@ -66,8 +74,24 @@
         .then(response => response.json())
         .then(result => {
             if (result.success) {
-                alert('Weekly plan generated successfully!');
-                console.log('Generated plan:', result.plan); 
+                const dialogue = document.getElementById('plan-dialogue');
+                const description = document.getElementById('plan-description');
+                const closeButton = document.querySelector('.close-btn');
+
+                if (result.plan && result.plan.Explaining) {
+                    description.textContent = result.plan.Explaining;
+                    saveGeneratedPlan(result.plan);
+                } else {
+                    console.error("Explaining key not found in result.plan:", result.plan);
+                    description.textContent = "No explanation available.";
+                }
+
+                dialogue.classList.remove('hidden');
+
+                closeButton.addEventListener('click', () => {
+                    dialogue.classList.add('hidden');
+                });
+
             } else {
                 alert('Failed to generate weekly plan: ' + result.message);
             }
@@ -98,8 +122,8 @@
         for (let day = 1; day <= daysInMonth; day++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
             let intensity = workoutData[dateStr] || 0; 
-            if (intensity>=4){
-                intensity = 4;
+            if (intensity>=7){
+                intensity = 7;
             }
 
             const dayCell = document.createElement("div");
@@ -116,5 +140,26 @@
             generateWorkoutCalendar(data);
         })
         .catch((error) => console.error("Error fetching workout data:", error));
+
+    function saveGeneratedPlan(plan) {
+        fetch('/api/plan/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({plan}),
+        })
+            .then((response) => response.json())
+            .then((saveResult) => {
+                if (saveResult.success) {
+                    console.log('Plan saved successfully:', saveResult.message);
+                } else {
+                    console.error('Failed to save the plan:', saveResult.message);
+                }
+            })
+            .catch((error) => {
+                console.error('Error saving the plan:', error);
+            });
+    }
 </script>
 </html>

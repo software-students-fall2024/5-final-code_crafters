@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To Do List</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style2.css') }}">
+</head>
+<body>
+
+    <div class="todo-container">
+        <header>
+            <h1>Exercise List</h1>
+            <p id="selected-date">{{ date }}</p>
+            <button class="add-todo-btn" onclick="window.location.href='/search';">Add</button>
+        </header>
+
+        <section class="welcome-message">
+            <p>You're viewing your exercise plan ahead of time. Remember, each step you take brings you closer to your goals. Let's make it a productive day!</p>
+        </section>
+
+        <div class="todo-list">
+            {% if exercises %}
+            {% for exercise in exercises %}
+            <div class="todo-item">
+                <input type="checkbox" class="task-checkbox">
+                <button class="exercise-btn" onclick="window.location.href='/edit?exercise_todo_id={{ exercise.exercise_todo_id }}'">
+                    {{ exercise.workout_name }}
+                </button>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p>No exercises planned for this date. Add some to get started!</p>
+            {% endif %}
+        </div>
+        <button class="delete-all-btn" onclick="window.location.href='/todo/delete_by_date?date={{ date }}';">Delete</button>
+        <footer>
+            <p>All rights reserved. <a href="#">Privacy policy</a></p>
+        </footer>
+        <nav class="navbar">
+            <a href="/todo" class="clickedNav">To Do</a>
+            <a href="/plan">Plan</a>
+            <a href="/user">User</a>
+        </nav>
+    </div>
+
+    <script>
+        const dateElement = document.getElementById('selected-date');
+        const dateFromServer = "{{ date }}"; 
+        dateElement.textContent = `${dateFromServer}`;
+
+        document.querySelectorAll('.task-checkbox').forEach(function (checkbox) {
+            checkbox.addEventListener('change', function () {
+                if (this.checked) {
+                    console.log(`Task completed for date: ${dateFromServer}`);
+                } else {
+                    console.log(`Task marked incomplete for date: ${dateFromServer}`);
+                }
+            });
+        });
+    </script>
+    
+</body>
+</html>
