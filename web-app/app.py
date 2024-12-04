@@ -32,8 +32,8 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 # URL of your db-service
-DB_SERVICE_URL = "http://db-service:5112/"
-#DB_SERVICE_URL = "http://localhost:5112/"
+#DB_SERVICE_URL = "http://db-service:5112/"
+DB_SERVICE_URL = "http://localhost:5112/"
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -163,18 +163,6 @@ def get_today_todo():
     except Exception as e:
         print(f"Error retrieving today's To-Do list: {e}")
         return []
-
-def delete_todo_api(exercise_todo_id: int):
-    """Delete a to-do item via the db-service API."""
-    try:
-        response = requests.delete(
-            f"{DB_SERVICE_URL}/todo/delete/{current_user.id}/{exercise_todo_id}"
-        )
-        return response.json().get("success", False)
-    except requests.RequestException as e:
-        print(f"Error deleting todo item: {e}")
-        return False
-
 
 def add_todo_api(exercise_id: str, date: str, working_time=None, reps=None, weight=None):
     """Add a to-do item via the db-service API."""
@@ -457,15 +445,6 @@ def delete_exercise():
     """Renders a page to allow the user to select and delete exercises from the To-Do list."""
     exercises = get_todo()
     return render_template("delete.html", exercises=exercises)
-
-@app.route("/delete_exercise/<int:exercise_todo_id>", methods=["DELETE"])
-@login_required
-def delete_exercise_id(exercise_todo_id):
-    """Deletes a specific exercise from the user's To-Do list using its ID."""
-    success = delete_todo_api(exercise_todo_id)
-    if success:
-        return jsonify({"message": "Deleted successfully"}), 204
-    return jsonify({"message": "Failed to delete"}), 404
 
 @app.route("/edit", methods=["GET", "POST"])
 @login_required

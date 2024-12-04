@@ -42,9 +42,11 @@ def add_or_skip_todo(user_id):
             print(f"DEBUG: To-Do entry already exists for user {user_id} on {today_date}.")
             return {"message": "To-Do entry already exists", "exists": True}
         
+        time = datetime.utcnow()
+        target_date = datetime.strptime(date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
         todo_collection.insert_one({
             "user_id": str(user_id),
-            "date": datetime.utcnow(),
+            "date": target_date,
             "todo": []
         })
         
@@ -117,6 +119,7 @@ def get_todo(user_id):
 
         print(f"DEBUG: Today start: {today_start}, Today end: {today_end}")
 
+        # 查询用户当天的 To-Do 数据
         todo_data = todo_collection.find_one({
             "user_id": user_id,
             "date": {
@@ -126,25 +129,29 @@ def get_todo(user_id):
         })
 
         if todo_data:
-            print(f"DEBUG: Found To-Do data for user {user_id}: {todo_data}")
+            print(f"INFO: Found To-Do data for user {user_id}: {todo_data}")
+
+            import copy
+            todo_data = copy.deepcopy(todo_data)
 
             todo_data["_id"] = str(todo_data["_id"])
-            
             for item in todo_data.get("todo", []):
-                print(f"DEBUG: Processing To-Do item: {item}")
-                item["exercise_todo_id"] = int(item["exercise_todo_id"])
-                item["exercise_id"] = str(item["exercise_id"])
+                if "exercise_todo_id" in item:
+                    item["exercise_todo_id"] = str(item["exercise_todo_id"])
+                if "exercise_id" in item:
+                    item["exercise_id"] = str(item["exercise_id"])
                 if "time" in item and isinstance(item["time"], datetime):
                     item["time"] = item["time"].strftime("%Y-%m-%d")
-            
+
             print(f"DEBUG: Final To-Do data for response: {todo_data}")
-            return jsonify(todo_data), 200  
-        print(f"DEBUG: No To-Do data found for user {user_id} on {today_start.date()}")
+            return jsonify(todo_data), 200
+
+        print(f"WARNING: No To-Do data found for user {user_id} on {today_start.date()}")
         return jsonify({"error": "Todo not found"}), 404
 
     except Exception as e:
-        print(f"ERROR: Failed to retrieve todos for user {user_id}: {e}")
-        return jsonify({"error": "An error occurred", "message": str(e)}), 500
+        print(f"ERROR: Exception occurred while fetching To-Do data: {e}")
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
 @app.route("/todo/add", methods=["POST"])
 def add_todo():
@@ -204,15 +211,6 @@ def add_todo():
     except Exception as e:
         print(f"ERROR: Failed to add todo item: {e}")
         return jsonify({"error": "An error occurred", "message": str(e)}), 500
-
-@app.route("/todo/delete/<user_id>/<int:exercise_todo_id>", methods=["DELETE"])
-def delete_todo(user_id, exercise_todo_id):
-    """Delete a todo item from user's list."""
-    result = todo_collection.update_one(
-        {"user_id": user_id},
-        {"$pull": {"todo": {"exercise_todo_id": exercise_todo_id}}}
-    )
-    return jsonify({"success": result.modified_count > 0}), 200
 
 @app.route("/todo/edit/<user_id>/<int:exercise_todo_id>", methods=["PUT"])
 def edit_todo_item(user_id, exercise_todo_id):

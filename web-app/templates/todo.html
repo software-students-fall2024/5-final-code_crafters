@@ -30,7 +30,7 @@
             </div>
             {% endfor %}
         </div>
-        <button class="delete-all-btn" onclick="window.location.href='/delete_exercise';">Delete</button>
+        <button class="delete-all-btn" onclick="deleteAllTasks();">Delete</button>
         <footer>
             <p>All rights reserved. <a href="#">Privacy policy</a></p>
         </footer>
@@ -60,6 +60,11 @@
         const formattedDate = utcDate.toLocaleDateString('en-US', options);
 
         document.getElementById('current-date').innerText = formattedDate;
+
+
+        function deleteAllTasks() {
+            window.location.href = `/todo/delete_by_date?date=${formattedDate}`; 
+        }
     </script>
     
 </body>
