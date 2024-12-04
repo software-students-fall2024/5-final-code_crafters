@@ -38,11 +38,10 @@
     <script>
         document.querySelectorAll('.delete-btn').forEach(function (button) {
             button.addEventListener('click', function () {
-                const exerciseId = this.getAttribute('data-id'); // 获取exercise的ID
+                const exerciseId = this.getAttribute('data-id'); 
 
-                // 获取页面的全局 date 参数
                 const urlParams = new URLSearchParams(window.location.search);
-                const dateParam = urlParams.get('date'); // 从 URL 中获取 date
+                const dateParam = urlParams.get('date'); 
 
                 if (!dateParam) {
                     alert('Date parameter is missing in the URL. Cannot proceed.');
