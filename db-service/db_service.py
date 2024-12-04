@@ -212,15 +212,6 @@ def add_todo():
         print(f"ERROR: Failed to add todo item: {e}")
         return jsonify({"error": "An error occurred", "message": str(e)}), 500
 
-@app.route("/todo/delete/<user_id>/<int:exercise_todo_id>", methods=["DELETE"])
-def delete_todo(user_id, exercise_todo_id):
-    """Delete a todo item from user's list."""
-    result = todo_collection.update_one(
-        {"user_id": user_id},
-        {"$pull": {"todo": {"exercise_todo_id": exercise_todo_id}}}
-    )
-    return jsonify({"success": result.modified_count > 0}), 200
-
 @app.route("/todo/edit/<user_id>/<int:exercise_todo_id>", methods=["PUT"])
 def edit_todo_item(user_id, exercise_todo_id):
     """Edit an existing todo item."""
