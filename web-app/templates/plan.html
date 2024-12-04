@@ -16,7 +16,7 @@
     <div class="plan-container">
         <header class="plan-header">
             <h1>Week Plan</h1>
-            <p class="current-status">Here's your personalized plan to keep you motivated and on track. </p>
+            <p class="current-status">Here's your personalized plan to keep you motivated and on track. You can check or edit them by clicking on the tabs.</p>
             <div class="plan-switch">
                 <button id="week-btn" class="active">Week</button>
                 <button id="month-btn">Month</button>
@@ -99,6 +99,7 @@
                         const tasks = data[dateStr] || []; 
                         const listItem = document.createElement('li');
                         listItem.innerHTML = `
+                        <a href="/todo/view?date=${dateStr}" style="text-decoration: none; color: inherit;">
                             <div style="display: flex; flex-direction: column; align-items: flex-start;">
                                 <span>${day}</span>
                                 <small>${dateStr}</small>
@@ -109,6 +110,7 @@
                                     : "<div style='color: gray; font-style: italic;'>No tasks available for today</div>"
                                 }
                             </div>
+                        </a>
                             `;
                         weekList.appendChild(listItem);
 
@@ -161,8 +163,6 @@
                     monthList.innerHTML = `<li>Error loading month plan</li>`;
                 });
         }
-
-
     
         prevWeekBtn.addEventListener('click', () => {
             currentWeekStartDate.setDate(currentWeekStartDate.getDate() - 7);
@@ -193,6 +193,7 @@
     
         fetchWeekPlan(currentWeekStartDate);
         fetchMonthPlan(currentMonth);
+        
     </script>
 </body>
 </html>

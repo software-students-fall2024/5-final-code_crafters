@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete Exercises</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style2.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/todo">To Do</a>
+        <a href="/plan">Plan</a>
+        <a href="/user" >User</a>
+    </nav>
+
+    <div class="delete-container">
+        <header>
+            <button class="back-btn" onclick="redirectToViewPage()">Back</button>
+        </header>
+
+        <section class="warning-message">
+            <p id="delete-date-text">You are deleting exercises for </p>
+            <br>
+            <p>Deleting this exercise will remove it from your to-do list, but you can add it back at any time. If you want to mark the exercise as completed, simply check the checkbox instead of deleting it.</p>
+        </section>
+
+        <div class="exercise-list">
+            <div class="exercise-list">
+                {% for exercise in exercises %}
+                <div class="exercise-item" id="exercise-{{ exercise.exercise_todo_id }}">
+                    <label>{{ exercise.workout_name }}</label>
+                    <button class="delete-btn" data-id="{{ exercise.exercise_todo_id }}">Delete</button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <script>
+        document.querySelectorAll('.delete-btn').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const exerciseId = this.getAttribute('data-id'); // 获取exercise的ID
+
+                // 获取页面的全局 date 参数
+                const urlParams = new URLSearchParams(window.location.search);
+                const dateParam = urlParams.get('date'); // 从 URL 中获取 date
+
+                if (!dateParam) {
+                    alert('Date parameter is missing in the URL. Cannot proceed.');
+                    console.error('Date parameter is missing.');
+                    return;
+                }
+
+                fetch(`/api/exercise/delete`, {
+                    method: 'POST', // 使用POST发送请求
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ exercise_id: exerciseId, date: dateParam }), // 发送 exercise_id 和 date
+                })
+                    .then((response) => {
+                        if (response.ok) {
+                            document.getElementById(`exercise-${exerciseId}`).remove(); // 删除页面上的对应项
+                        } else {
+                            alert('Failed to delete the exercise');
+                        }
+                    })
+                    .catch((error) => {
+                        console.error('Error deleting exercise:', error);
+                        alert('An error occurred while deleting the exercise');
+                    });
+            });
+        });
+
+
+
+        function redirectToViewPage() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const dateParam = urlParams.get('date');
+
+            if (dateParam) {
+                const parsedDate = new Date(dateParam);
+                const formattedDate = parsedDate.toISOString().split('T')[0]; 
+
+                const targetUrl = `/todo/view?date=${formattedDate}`;
+
+                window.location.href = targetUrl;
+            } else {
+                console.error("Date parameter is missing in the URL.");
+            }
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const dateParam = urlParams.get('date');
+
+        if (dateParam) {
+            document.getElementById('delete-date-text').textContent = `You are deleting exercises for ${dateParam}`;
+        } else {
+            document.getElementById('delete-date-text').textContent = "No date provided.";
+        }
+    </script>
+
+
+</body>
+</html>
