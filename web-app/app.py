@@ -32,8 +32,8 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 # URL of your db-service
-#DB_SERVICE_URL = "http://db-service:5112/"
-DB_SERVICE_URL = "http://localhost:5112/"
+DB_SERVICE_URL = "http://db-service:5112/"
+#DB_SERVICE_URL = "http://localhost:5112/"
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -192,32 +192,6 @@ def add_todo_api(exercise_id: str, date: str, working_time=None, reps=None, weig
         return response.json().get("success", False)
     except requests.RequestException as e:
         print(f"Error adding todo item: {e}")
-        return False
-
-def edit_exercise_api(exercise_todo_id, working_time, weight, reps):
-    """Edit a to-do item via the db-service API."""
-    update_fields = {}
-    if working_time is not None:
-        update_fields["working_time"] = working_time
-    if weight is not None:
-        update_fields["weight"] = weight
-    if reps is not None:
-        update_fields["reps"] = reps
-
-    if not update_fields:
-        return False
-
-    data = {
-        "update_fields": update_fields
-    }
-    try:
-        response = requests.put(
-            f"{DB_SERVICE_URL}/todo/edit/{current_user.id}/{exercise_todo_id}",
-            json=data
-        )
-        return response.json().get("success", False)
-    except requests.RequestException as e:
-        print(f"Error editing todo item: {e}")
         return False
 
 def add_search_history_api(content):
@@ -439,35 +413,87 @@ def add_exercise():
     print(f"Failed to add exercise with ID: {exercise_id} on date: {date}")
     return jsonify({"message": "Failed to add"}), 400
 
-@app.route("/delete_exercise")
+@app.route("/edit", methods=["GET"])
 @login_required
-def delete_exercise():
-    """Renders a page to allow the user to select and delete exercises from the To-Do list."""
-    exercises = get_todo()
-    return render_template("delete.html", exercises=exercises)
-
-@app.route("/edit", methods=["GET", "POST"])
-@login_required
-def edit():
+def get_edit():
     """Enables the user to edit an exercise's details in the To-Do list."""
     exercise_todo_id = request.args.get("exercise_todo_id")
-    exercise_in_todo = get_exercise_in_todo(exercise_todo_id)
+    date = request.args.get("date") 
+    raw_date = datetime.strptime(date, "%A, %B %d, %Y") 
+    formatted_date = raw_date.strftime("%Y-%m-%d")
+
+    if not exercise_todo_id or not formatted_date:
+        return jsonify({"message": "exercise_todo_id and date are required"}), 400
+
+    try:
+        response = requests.get(
+            f"{DB_SERVICE_URL}/todo/get_exercise_by_id",
+            params={"user_id": current_user.id, "date": formatted_date, "exercise_todo_id": exercise_todo_id}
+        )
+
+        if response.status_code == 200:
+            exercise_in_todo = response.json()
+        else:
+            exercise_in_todo = None
+
+    except requests.RequestException as e:
+        print(f"Error fetching exercise from db-service: {e}")
+        exercise_in_todo = None
 
     if not exercise_in_todo:
         return jsonify({"message": "Exercise not found in your To-Do list"}), 404
 
-    if request.method == "POST":
-        working_time = request.form.get("working_time")
-        weight = request.form.get("weight")
-        reps = request.form.get("reps")
-        success = edit_exercise_api(exercise_todo_id, working_time, weight, reps)
-        if success:
-            return jsonify({"message": "Edited successfully"}), 200
-        return jsonify({"message": "Failed to edit"}), 400
-
     return render_template(
-        "edit.html", exercise_todo_id=exercise_todo_id, exercise=exercise_in_todo
+        "edit.html", exercise_todo_id=exercise_todo_id, date=formatted_date, exercise=exercise_in_todo
     )
+
+@app.route("/edit", methods=["POST"])
+@login_required
+def post_edit():
+    """Update the details of an exercise in the To-Do list."""
+    exercise_todo_id = request.form.get("exercise_todo_id")
+    date = request.form.get("date")
+    formatted_date = datetime.strptime(date, "%Y-%m-%d").strftime("%Y-%m-%d")
+    print(f"DEBUG: Received exercise_todo_id={exercise_todo_id}, date={date}")
+
+    if not exercise_todo_id or not date:
+        return jsonify({"message": "exercise_todo_id and date are required"}), 400
+
+    working_time = request.form.get("working_time")
+    weight = request.form.get("weight")
+    reps = request.form.get("reps")
+
+    update_data = {
+        "user_id": current_user.id,
+        "date": formatted_date,
+        "exercise_todo_id": exercise_todo_id,
+        "update_fields": {}
+    }
+
+    if working_time:
+        update_data["update_fields"]["working_time"] = working_time
+    if weight:
+        update_data["update_fields"]["weight"] = weight
+    if reps:
+        update_data["update_fields"]["reps"] = reps
+
+    if not update_data["update_fields"]:
+        return jsonify({"message": "No fields to update"}), 400
+
+    try:
+        response = requests.post(
+            f"{DB_SERVICE_URL}/todo/update_exercise",
+            json=update_data
+        )
+
+        if response.status_code == 200:
+            return jsonify({"message": "Exercise updated successfully"}), 200
+        else:
+            return jsonify({"message": "Failed to update exercise"}), response.status_code
+
+    except requests.RequestException as e:
+        print(f"Error updating exercise in db-service: {e}")
+        return jsonify({"message": "An error occurred while updating the exercise"}), 500
 
 @app.route("/instructions", methods=["GET"])
 def instructions():
@@ -527,77 +553,6 @@ def call_speech_to_text_service(file_path):
     except requests.RequestException as e:
         print(f"Error communicating with the Speech-to-Text service: {e}")
         return "Error during transcription"
-
-@app.route("/process-audio", methods=["POST"])
-@login_required
-def process_audio():
-    """Processes uploaded audio to extract parameters and updates the exercise."""
-    if "audio" not in request.files:
-        return jsonify({"error": "No audio file uploaded"}), 400
-
-    audio = request.files["audio"]
-    original_file_path = os.path.join(app.config["UPLOAD_FOLDER"], audio.filename)
-    audio.save(original_file_path)
-
-    wav_file_path = os.path.splitext(original_file_path)[0] + "_converted.wav"
-    try:
-        subprocess.run(
-            [
-                "ffmpeg",
-                "-y",
-                "-i",
-                original_file_path,
-                "-ar",
-                "16000",
-                "-ac",
-                "1",
-                wav_file_path,
-            ],
-            check=True,
-        )
-    except subprocess.CalledProcessError as e:
-        print(f"Error converting audio to WAV: {e}")
-        return jsonify({"error": "Failed to convert audio file"}), 500
-
-    transcription = call_speech_to_text_service(wav_file_path)
-    if not transcription:
-        return jsonify({"error": "Failed to transcribe audio"}), 500
-
-    parsed_data = parse_voice_command(transcription)
-    if not parsed_data:
-        return (
-            jsonify(
-                {
-                    "error": "Failed to parse transcription",
-                    "transcription": transcription,
-                }
-            ),
-            400,
-        )
-
-    working_time = f"{parsed_data['time']}:00" if parsed_data["time"] else None
-    groups = parsed_data.get("groups")
-    weight = parsed_data.get("weight")
-
-    exercise_todo_id = request.args.get("exercise_todo_id")
-    if not exercise_todo_id:
-        return jsonify({"error": "Exercise To-Do ID is required"}), 400
-
-    success = edit_exercise_api(exercise_todo_id, working_time, weight, groups)
-    if not success:
-        return jsonify({"error": "Failed to update exercise"}), 500
-
-    return (
-        jsonify(
-            {
-                "message": "Exercise updated successfully",
-                "time": parsed_data["time"],
-                "groups": groups,
-                "weight": weight,
-            }
-        ),
-        200,
-    )
 
 @app.route("/upload-transcription", methods=["POST"])
 @login_required
@@ -712,10 +667,10 @@ def get_month_plan():
             ]
 
             if week_tasks:
-                most_frequent_workout = max(set(week_tasks), key=week_tasks.count)
-                month_plan_data[week_start_date.strftime("%Y-%m-%d")] = most_frequent_workout
+                limited_tasks = week_tasks[:3]  
+                month_plan_data[week_start_date.strftime("%Y-%m-%d")] = limited_tasks
             else:
-                month_plan_data[week_start_date.strftime("%Y-%m-%d")] = None
+                month_plan_data[week_start_date.strftime("%Y-%m-%d")] = []
 
             current_date += timedelta(days=7)
 

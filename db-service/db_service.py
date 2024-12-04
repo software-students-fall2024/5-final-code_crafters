@@ -119,7 +119,6 @@ def get_todo(user_id):
 
         print(f"DEBUG: Today start: {today_start}, Today end: {today_end}")
 
-        # 查询用户当天的 To-Do 数据
         todo_data = todo_collection.find_one({
             "user_id": user_id,
             "date": {
@@ -160,19 +159,19 @@ def add_todo():
     如果记录不存在，直接创建新记录；如果存在，直接更新。
     """
     data = request.json
-    #print(f"DEBUG: Received data: {data}")  
+    print(f"DEBUG: Received data: {data}")  
 
     user_id = data.get("user_id")
     exercise_item = data.get("exercise_item")
     date = data.get("date")  
 
     if not user_id or not exercise_item or not date:
-        #print(f"ERROR: Missing required fields - user_id: {user_id}, exercise_item: {exercise_item}, date: {date}")
+        print(f"ERROR: Missing required fields - user_id: {user_id}, exercise_item: {exercise_item}, date: {date}")
         return jsonify({"error": "user_id, date, and exercise_item are required"}), 400
 
     try:
         target_date = datetime.strptime(date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
-        #print(f"DEBUG: Parsed target_date: {target_date}")
+        print(f"DEBUG: Parsed target_date: {target_date}")
 
         existing_todo = todo_collection.find_one({
             "user_id": user_id,
@@ -184,7 +183,6 @@ def add_todo():
         print(f"DEBUG: Existing todo record: {existing_todo}")
 
         if existing_todo:
-            # 如果记录存在，更新 todo 列表
             print(f"DEBUG: Updating existing todo for user_id: {user_id}, date: {target_date}")
             result = todo_collection.update_one(
                 {"_id": existing_todo["_id"]},
@@ -194,7 +192,6 @@ def add_todo():
             message = "New todo item added to existing entry" if success else "Failed to add todo item"
             print(f"DEBUG: Update result - success: {success}, modified_count: {result.modified_count}")
         else:
-            # 如果记录不存在，创建新记录
             print(f"DEBUG: Creating new todo entry for user_id: {user_id}, date: {target_date}")
             new_todo = {
                 "user_id": user_id,
@@ -212,21 +209,75 @@ def add_todo():
         print(f"ERROR: Failed to add todo item: {e}")
         return jsonify({"error": "An error occurred", "message": str(e)}), 500
 
-@app.route("/todo/edit/<user_id>/<int:exercise_todo_id>", methods=["PUT"])
-def edit_todo_item(user_id, exercise_todo_id):
-    """Edit an existing todo item."""
+@app.route("/todo/get_exercise_by_id", methods=["GET"])
+def get_exercise_by_id():
+    """
+    获取用户特定日期的特定 To-Do 项
+    """
+    user_id = request.args.get("user_id")
+    date = request.args.get("date")
+    exercise_todo_id = request.args.get("exercise_todo_id")
+
+    if not user_id or not date or not exercise_todo_id:
+        return jsonify({"error": "user_id, date, and exercise_todo_id are required"}), 400
+
+    try:
+        target_date = datetime.strptime(date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
+
+        todo_data = todo_collection.find_one({
+            "user_id": user_id,
+            "date": target_date,
+            "todo.exercise_todo_id": exercise_todo_id
+        })
+
+        if todo_data:
+            for item in todo_data.get("todo", []):
+                if item.get("exercise_todo_id") == exercise_todo_id:
+                    return jsonify(item), 200
+
+        return jsonify({"error": "Exercise not found"}), 404
+
+    except Exception as e:
+        print(f"Error fetching exercise: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+@app.route("/todo/update_exercise", methods=["POST"])
+def update_exercise():
+    """
+    更新用户特定 To-Do 项的字段
+    """
     data = request.json
+    user_id = data.get("user_id")
+    date = data.get("date")
+    exercise_todo_id = data.get("exercise_todo_id")
     update_fields = data.get("update_fields", {})
-    if not update_fields:
-        return jsonify({"error": "No fields to update"}), 400
 
-    update_query = {f"todo.$.{k}": v for k, v in update_fields.items()}
+    if not user_id or not date or not exercise_todo_id or not update_fields:
+        return jsonify({"error": "user_id, date, exercise_todo_id, and update_fields are required"}), 400
 
-    result = todo_collection.update_one(
-        {"user_id": user_id, "todo.exercise_todo_id": exercise_todo_id},
-        {"$set": update_query}
-    )
-    return jsonify({"success": result.modified_count > 0}), 200
+    try:
+        target_date = datetime.strptime(date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
+
+        result = todo_collection.update_one(
+            {
+                "user_id": user_id,
+                "date": target_date,
+                "todo.exercise_todo_id": exercise_todo_id
+            },
+            {
+                "$set": {
+                    **{f"todo.$.{key}": value for key, value in update_fields.items()}
+                }
+            }
+        )
+
+        if result.modified_count > 0:
+            return jsonify({"success": True, "message": "Exercise updated successfully"}), 200
+        return jsonify({"success": False, "message": "No matching exercise found"}), 404
+
+    except Exception as e:
+        print(f"Error updating exercise: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route("/todo/get-item/<user_id>/<int:exercise_todo_id>", methods=["GET"])
 def get_todo_item(user_id, exercise_todo_id):
@@ -334,6 +385,7 @@ def update_user(user_id):
     except Exception as e:
         print(f"Error updating user: {e}")
         return jsonify({"error": "Failed to update user"}), 500
+
 @app.route("/exercises/all", methods=["GET"])
 def get_all_exercises():
     exercises = list(exercises_collection.find({}, {"workout_name": 1, "_id": 1}))
@@ -426,39 +478,32 @@ def delete_exercise_from_date():
     根据用户 ID 和日期从数据库中删除指定的 exercise_id
     """
     data = request.json
-    user_id = data.get("user_id")  # 用户 ID
-    date = data.get("date")  # 日期
-    exercise_id = data.get("exercise_id")  # 待删除的 exercise_id
+    user_id = data.get("user_id") 
+    date = data.get("date")  
+    exercise_id = data.get("exercise_id") 
 
-    # 检查必要参数
     if not user_id or not date or not exercise_id:
         print("DEBUG: Missing user_id, date, or exercise_id in request")
         return jsonify({"success": False, "message": "user_id, date, and exercise_id are required"}), 400
 
     try:
-        # 转换日期格式为标准 UTC 日期
         target_date = datetime.strptime(date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
 
-        # 调试输出：尝试查找用户的 To-Do 项目
         print(f"DEBUG: Looking up todos for User ID: {user_id}, Date: {target_date}")
 
-        # 查询数据库以获取指定日期的 To-Do 列表
         user_todo = todo_collection.find_one({"user_id": user_id, "date": target_date})
 
         if not user_todo:
             print(f"DEBUG: No todos found for User ID: {user_id} on Date: {target_date}")
             return jsonify({"success": False, "message": "No todos found for the specified date"}), 404
 
-        # 调试输出：打印完整的 To-Do 列表
         print(f"DEBUG: Found todos: {user_todo['todo']}")
 
-        # 删除匹配的 exercise_id
         result = todo_collection.update_one(
             {"user_id": user_id, "date": target_date},
             {"$pull": {"todo": {"exercise_todo_id": exercise_id}}}
         )
 
-        # 检查是否删除成功
         if result.modified_count > 0:
             print(f"DEBUG: Successfully deleted exercise. User ID: {user_id}, Exercise ID: {exercise_id}")
             return jsonify({"success": True, "message": "Exercise deleted successfully"}), 200

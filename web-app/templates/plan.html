@@ -16,7 +16,7 @@
     <div class="plan-container">
         <header class="plan-header">
             <h1>Week Plan</h1>
-            <p class="current-status">Here's your personalized plan to keep you motivated and on track. You can check or edit them by clicking on the tabs.</p>
+            <p class="current-status">Here's your personalized plan to keep you motivated and on track. You will see the most frequent exercise you do. You can check or edit them by clicking on the tabs.</p>
             <div class="plan-switch">
                 <button id="week-btn" class="active">Week</button>
                 <button id="month-btn">Month</button>
@@ -142,16 +142,19 @@
 
                             const startStr = start.toISOString().split('T')[0];
                             const endStr = end.toISOString().split('T')[0];
+                            const limitedTasks =
+                                Array.isArray(description) && description.length > 0
+                                    ? description.slice(0, 3).map(task => `<div style="color: #333333;text-align: left;"> &#9679; ${task}</div>`).join("")
+                                    : "<div style='color: gray; font-style: italic;text-align: left;'>No tasks available for this week</div>";
 
                             const listItem = document.createElement('li');
                             listItem.innerHTML = `
-                            <div style="display: flex; flex-direction: column;">
-                                <span>Week ${weekIndex++}</span>
-                                <small>${startStr} - ${endStr}</small>
-                            </div>
-                                <p>${
-                                    description ? description : "<div style='color: gray; font-style: italic;'>No description</div>"
-                                }</p>`;
+                                <div style="display: flex; flex-direction: column; align-items: flex-start; text-align: left;">
+                                    <span>Week ${weekIndex++}</span>
+                                    <small>${startStr} - ${endStr}</small>
+                                </div>
+                                <div>${limitedTasks}</div>
+                            `;
                             monthList.appendChild(listItem);
                         });
                     } else {
