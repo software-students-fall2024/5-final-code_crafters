@@ -15,7 +15,7 @@
 
     <div class="exercise-container">
         <header class="header-container">
-            <button class="back-btn" onclick="window.location.href='/todo';">Back</button>
+            <button class="back-btn" onclick="redirectToViewPage()">Back</button>
             <h1 class="exercise-title">{{ exercise.workout_name }}</h1>
         </header>
 
@@ -156,8 +156,11 @@
             
             const exercise_todo_id = "{{ exercise.exercise_todo_id }}"; 
             const formData = new FormData(this);  
+            const date = "{{ date }}"; 
+            formData.append("date", date);
+            formData.append("exercise_todo_id", exercise_todo_id);
     
-            fetch(`/edit?exercise_todo_id=${exercise_todo_id}`, {
+            fetch(`/edit`, {
                 method: 'POST',
                 body: formData
             })
@@ -172,6 +175,22 @@
                 alert('An error occurred while saving the exercise.');
             });
         });
+
+        function redirectToViewPage() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const dateParam = urlParams.get('date');
+
+            if (dateParam) {
+                const parsedDate = new Date(dateParam);
+                const formattedDate = parsedDate.toISOString().split('T')[0]; 
+
+                const targetUrl = `/todo/view?date=${formattedDate}`;
+
+                window.location.href = targetUrl;
+            } else {
+                console.error("Date parameter is missing in the URL.");
+            }
+        }
     </script>
     
 </body>

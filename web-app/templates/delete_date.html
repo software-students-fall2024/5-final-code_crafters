@@ -50,15 +50,15 @@
                 }
 
                 fetch(`/api/exercise/delete`, {
-                    method: 'POST', // 使用POST发送请求
+                    method: 'POST', 
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ exercise_id: exerciseId, date: dateParam }), // 发送 exercise_id 和 date
+                    body: JSON.stringify({ exercise_id: exerciseId, date: dateParam }), 
                 })
                     .then((response) => {
                         if (response.ok) {
-                            document.getElementById(`exercise-${exerciseId}`).remove(); // 删除页面上的对应项
+                            document.getElementById(`exercise-${exerciseId}`).remove(); 
                         } else {
                             alert('Failed to delete the exercise');
                         }

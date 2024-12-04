@@ -24,7 +24,7 @@
             {% for exercise in exercises %}
             <div class="todo-item">
                 <input type="checkbox" class="task-checkbox">
-                <button class="exercise-btn" onclick="window.location.href='/edit?exercise_todo_id={{ exercise.exercise_todo_id }}'">
+                <button class="exercise-btn" onclick="window.location.href='/edit?exercise_todo_id={{ exercise.exercise_todo_id }}&date={{date}}'">
                     {{ exercise.workout_name }}
                 </button>
             </div>

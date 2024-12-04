@@ -24,7 +24,7 @@
             {% for exercise in exercises %}
             <div class="todo-item">
                 <input type="checkbox" class="task-checkbox" >
-                <button class="exercise-btn" onclick="window.location.href='/edit?exercise_todo_id={{ exercise.exercise_todo_id }}'">
+                <button class="exercise-btn" onclick="redirectToEditPage('{{ exercise.exercise_todo_id }}')">
                     {{ exercise.workout_name }}
                 </button>
             </div>
@@ -65,6 +65,12 @@
         function deleteAllTasks() {
             window.location.href = `/todo/delete_by_date?date=${formattedDate}`; 
         }
+
+        function redirectToEditPage(exerciseTodoId) {
+            window.location.href = `/edit?exercise_todo_id=${exerciseTodoId}&date=${formattedDate}`;
+        }
+
+
     </script>
     
 </body>
