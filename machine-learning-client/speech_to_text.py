@@ -7,7 +7,7 @@ import json
 from dotenv import load_dotenv
 from google.cloud import speech
 from google.oauth2 import service_account
-from flask import Flask, request, jsonify
+from flask import Flask
 
 load_dotenv()
 app = Flask(__name__)
@@ -89,8 +89,8 @@ def transcribe_file(audio_file: str, credentials) -> speech.RecognizeResponse:
 #     return jsonify({"transcript": result.transcript, "confidence": result.confidence})
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     # credentials = get_google_cloud_credentials()
     # res = transcribe_file("./machine-learning-client/recording.wav", credentials)
     # print(res)
-    app.run(host="0.0.0.0", port=8080)
+    # app.run(host="0.0.0.0", port=8080)

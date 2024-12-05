@@ -1,6 +1,8 @@
-from speech_to_text import transcribe_file, get_google_cloud_credentials
-from llm import plan_generation
+"""This is a model do deal with docker communication"""
+
 from flask import Flask, request, jsonify
+from llm import plan_generation
+from speech_to_text import transcribe_file, get_google_cloud_credentials
 
 
 app = Flask(__name__)
@@ -30,14 +32,20 @@ def transcribe():
 
 @app.route("/plan", methods=["POST"])
 def plan():
+    """
+    Provide a function generate a plan
+    """
     user_info = request.json
-
     if not user_info:
+        print("User information is required")
         return jsonify({"error": "User information is required"}), 400
 
-    result = plan_generation(user_info)
+    if "name" not in user_info:
+        print("User information is not complete")
+        return jsonify({"error": "User information is not complete"}), 400
 
-    if result is "Error generating plan":
+    result = plan_generation(user_info)
+    if result == "Error generating plan":
         return jsonify({"error": "Plan generation failed"}), 500
 
     return result

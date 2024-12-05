@@ -1,13 +1,11 @@
 """
-Install an additional SDK for JSON schema support Google AI Python SDK
-
-$ pip install google.ai.generativelanguage
+This is a model to generate plan for users.
 """
 
 import os
+import json
 import google.generativeai as genai
 from google.ai.generativelanguage_v1beta.types import content
-import json
 from dotenv import load_dotenv
 
 
@@ -15,10 +13,10 @@ load_dotenv()
 api_key = os.getenv('GEMINI_API_KEY')
 genai.configure(api_key=api_key)
 
-with open('prompt.json', 'r') as file:
-    promt = json.load(file)["prompt"]
+with open('prompt.json', 'r', encoding='utf-8') as file:
+    prompt = json.load(file)["prompt"]
 
-user_info = {
+mock_user_info = {
     "workout":["pulls up","Weightlifting","Plyometrics","Swimming","Yoga"],
     "user_id": "001",
     "sex": "male",
@@ -31,13 +29,21 @@ user_info = {
 }
 
 
-def input_generate(user_info):
+def input_generate(prompt_data, user_info):
+    """
+    It's a function to combine user info and prompt.
+    """
+
     user_info_str = str(user_info)
-    input = promt + user_info_str
-    return input
+    input_data = prompt_data + user_info_str
+    return input_data
 
 
-def make_plan_request(input):
+def make_plan_request(input_data):
+    """
+    It's a function to call the API of a LLM to generate plan.
+    """
+
     generation_config = {
     "temperature": 1,
     "top_p": 0.95,
@@ -46,7 +52,16 @@ def make_plan_request(input):
     "response_schema": content.Schema(
         type = content.Type.OBJECT,
         enum = [],
-        required = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday", "Explaining"],
+        required = [
+            "Monday", 
+            "Tuesday", 
+            "Wednesday", 
+            "Thursday", 
+            "Friday", 
+            "Saturday", 
+            "Sunday", 
+            "Explaining"
+        ],
         properties = {
         "Monday": content.Schema(
             type = content.Type.ARRAY,
@@ -107,22 +122,28 @@ def make_plan_request(input):
     history=[]
     )
 
-    response = chat_session.send_message(input)
+    response = chat_session.send_message(input_data)
     return response
 
 
 def plan_generation(user_info):
+    """
+    It's a tool function to combine making plan and getting user info.
+    """
+
     try:
-        input = input_generate(user_info)
-        response = make_plan_request(input)
+        input_data = input_generate(prompt, user_info)
+        response = make_plan_request(input_data)
         return response.text
-    except Exception as e:
+    except TimeoutError as e:
+        print(f"Timeout error: {e}")
+        return "The request timed out while generating the plan"
+    except  FileNotFoundError as e:
         print(f"An error occurred: {e}")
         return "Error generating plan"
 
 
-if __name__ == '__main__':
-    response = plan_generation(user_info)
-    print(response)
-    print("\nFinish")
-
+# if __name__ == '__main__':
+    # response = plan_generation(mock_user_info)
+    # print(response)
+    # print("\nFinish")
