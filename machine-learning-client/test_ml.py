@@ -3,13 +3,9 @@
 from unittest.mock import patch, MagicMock
 import os
 import pytest
-from speech_to_text import get_google_cloud_credentials
-from speech_to_text import transcribe_file
+from speech_to_text import get_google_cloud_credentials, transcribe_file
 from communication import app
 from llm import input_generate, make_plan_request, plan_generation
-from communication import transcribe, plan
-import json
-from unittest import mock
 
 def test_missing_service_account_json():
     """test get credendtial function"""
