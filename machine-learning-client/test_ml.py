@@ -3,10 +3,9 @@
 from unittest.mock import patch, MagicMock
 import os
 import pytest
-from speech_to_text import get_google_cloud_credentials
-from speech_to_text import transcribe_file
-from speech_to_text import app
-
+from speech_to_text import get_google_cloud_credentials, transcribe_file
+from communication import app
+from llm import input_generate, make_plan_request, plan_generation
 
 def test_missing_service_account_json():
     """test get credendtial function"""
@@ -56,33 +55,149 @@ def test_transcribe_file_success(
     os.remove(audio_file)
 
 
+@patch("speech_to_text.speech.SpeechClient")
+def test_transcribe_file_value_error(mock_speech_client):
+    """Test wrong value for transcribe_file"""
+    mock_client_instance = MagicMock()
+    mock_speech_client.return_value = mock_client_instance
+    mock_client_instance.recognize.side_effect = ValueError("Invalid config or audio")
+
+    result = transcribe_file("valid_audio.wav", None)
+    assert result is None
+
+
 @pytest.fixture
-def client():
-    """test communication function"""
-    with app.test_client() as client:  # pylint: disable=redefined-outer-name
-        yield client
+def mock_client():
+    """Fixture to provide a test client for the Flask app."""
+    with app.test_client() as mock_client:
+        yield mock_client
 
 
-@patch("speech_to_text.get_google_cloud_credentials")
-@patch("speech_to_text.transcribe_file")
-def test_transcribe_success(
-    mock_transcribe_file, mock_get_google_cloud_credentials, client
-):  # pylint: disable=redefined-outer-name
-    """test transcribe file function with interaction with web app, should be successful"""
-    mock_get_google_cloud_credentials.return_value = MagicMock()
+@patch("speech_to_text.os.getenv")
+def test_get_google_cloud_credentials_missing_env(mock_getenv):
+    """Test google_cloud_credentials when missing env"""
+    mock_getenv.return_value = None
+    with pytest.raises(EnvironmentError):
+        get_google_cloud_credentials()
+
+
+@patch("communication.transcribe_file")
+@patch("communication.get_google_cloud_credentials")
+def test_transcribe_success(mock_get_credentials, mock_transcribe, mock_client):
+    """Test transcribe function"""
+    mock_get_credentials.return_value = "mock_credentials"
 
     mock_result = MagicMock()
-    mock_result.transcript = "hello may I ask what's your name"
-    mock_result.confidence = 0.9
-    mock_transcribe_file.return_value = mock_result
+    mock_result.transcript = "Hello, World!"
+    mock_result.confidence = 0.95
+    mock_transcribe.return_value = mock_result
 
-    response = client.post("/transcribe", json={"audio_file": "path/to/test_audio.wav"})
+    response = mock_client.post("/transcribe", json={"audio_file": "valid_audio_path"})
 
     assert response.status_code == 200
-    assert response.get_json() == {
-        "transcript": "hello may I ask what's your name",
-        "confidence": 0.9,
+    json_data = response.get_json()
+    assert "transcript" in json_data
+    assert json_data["transcript"] == "Hello, World!"
+    assert json_data["confidence"] == 0.95
+
+
+@patch("communication.plan_generation")
+def test_plan_generation_success(mock_plan_generation, mock_client):
+    """Test plan_generation"""
+    mock_plan_generation.return_value = {"plan": "Generated plan for test"}
+
+    response = mock_client.post("/plan", json={"name": "test"})
+
+    assert response.status_code == 200
+    json_data = response.get_json()
+    assert json_data["plan"] == "Generated plan for test"
+
+
+def test_plan_missing_user_info(mock_client):
+    """Test exception handling for plan"""
+    response = mock_client.post("/plan", json={})
+    assert response.status_code == 400
+    json_data = response.get_json()
+    assert json_data == {"error": "User information is required"}
+
+
+def test_plan_wrong_user_info(mock_client):
+    """Test wrong_user_info exception handling for plan"""
+    response = mock_client.post("/plan", json={"age": "5"})
+    assert response.status_code == 400
+    json_data = response.get_json()
+    assert json_data == {"error": "User information is not complete"}
+
+
+def test_transcribe_missing_audio_file(mock_client):
+    """Test missing_audio_file exception handling for transcribe"""
+    response = mock_client.post("/transcribe", json={})
+    assert response.status_code == 400
+    json_data = response.get_json()
+    assert json_data == {"error": "Audio file path is required"}
+
+
+def test_input_generate():
+    """Test input_generate function."""
+    mock_info = {
+        "name": "a",
+        "weight": "60",
     }
+    prompt = "Hi: "
+    res = input_generate(prompt, mock_info)
+    assert res == "Hi: {'name': 'a', 'weight': '60'}"
+
+
+class MockSchema:
+    """Tool function"""
+    def __init__(self, type, enum=None, required=None, properties=None, items=None):
+        self.type = type
+        self.enum = enum
+        self.required = required or []
+        self.properties = properties or {}
+        self.items = items
+
+class MockType:
+    """Tool function"""
+    OBJECT = "object"
+    ARRAY = "array"
+    STRING = "string"
+
+class MockGenerativeModel:
+    """Tool function"""
+    def __init__(self, model_name, generation_config):
+        self.model_name = model_name
+        self.generation_config = generation_config
+
+    def start_chat(self, history):
+        """Tool function"""
+        return MockChatSession()
+
+class MockChatSession:
+    """Tool function"""
+    def send_message(self, input):
+        """Tool function"""
+        return {"response": "Generated plan for the week."}
+
+@patch("llm.genai.GenerativeModel", MockGenerativeModel)
+@patch("llm.content.Schema", MockSchema)
+@patch("llm.content.Type", MockType)
+def test_make_plan_request():
+    """Test make_plan_request function"""
+    input_data = "Generate a weekly plan for study and rest."
+    response = make_plan_request(input_data)
+    assert "response" in response
+    assert response["response"] == "Generated plan for the week."
+
+
+@patch('llm.input_generate')
+def test_plan_generation_error(mock_input_generate):
+    """Test plan_generation's error"""
+    mock_input_generate.side_effect = TimeoutError
+    user_info = {"name": "John", "age": 30}
+    result = plan_generation(user_info)
+    assert result == "The request timed out while generating the plan"
+
 
 
 if __name__ == "__main__":
