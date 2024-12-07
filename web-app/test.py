@@ -997,7 +997,6 @@ def test_search_post_success(mock_url_for, mock_add_search_history_api, mock_sea
     with client.session_transaction() as session:
         assert session["results"] == mock_search_exercise.return_value
 
-
 @patch("app.search_exercise")
 def test_search_post_empty_query(mock_search_exercise, client):
     """Test POST search with an empty query."""
@@ -1459,6 +1458,350 @@ def test_upload_transcription_save_failure(
     )
     assert response.status_code == 500
     assert response.get_json() == {"error": "Failed to save transcription"}
+
+### Test get_plan function ###
+@patch("app.render_template")
+def test_get_plan(mock_render_template, client):
+    """Test the get_plan route."""
+    mock_render_template.return_value = "Test Plan Page"
+    response = client.get("/plan")
+    assert response.status_code == 200
+    assert response.data.decode("utf-8") == "Test Plan Page"
+
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_week_plan_success(mock_current_user, mock_requests_get, client):
+    """Test get_week_plan with successful API call."""
+    mock_current_user.id = "123"
+    mock_requests_get.return_value.status_code = 200
+    mock_requests_get.return_value.json.return_value = [
+        {"date": "2024-12-01", "todo": [{"workout_name": "Push Ups"}, {"workout_name": "Sit Ups"}]},
+        {"date": "2024-12-02", "todo": [{"workout_name": "Squats"}]}
+    ]
+    response = client.get("/plan/week?start_date=2024-12-01&end_date=2024-12-07")
+    
+    assert response.status_code == 200
+    assert response.json == {
+        "2024-12-01": ["Push Ups", "Sit Ups"],
+        "2024-12-02": ["Squats"]
+    }
+    mock_requests_get.assert_called_once_with(
+        f"{DB_SERVICE_URL}/todo/get_by_date/123",
+        params={"start_date": "2024-12-01", "end_date": "2024-12-07"}
+    )
+
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_week_plan_missing_dates(mock_current_user, mock_requests_get, client):
+    """Test get_week_plan with missing start_date and end_date."""
+    mock_current_user.id = "123"
+    response = client.get("/plan/week?start_date=2024-12-01")
+
+    assert response.status_code == 400
+    assert response.json == {"error": "start_date and end_date are required!"}
+    mock_requests_get.assert_not_called()
+
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_week_plan_api_failure(mock_current_user, mock_requests_get, client):
+    """Test get_week_plan when the API call fails."""
+    mock_current_user.id = "123"
+    mock_requests_get.return_value.status_code = 500
+    response = client.get("/plan/week?start_date=2024-12-01&end_date=2024-12-07")
+
+    assert response.status_code == 500
+    assert response.json == {"error": "Failed to get todo list"}
+    mock_requests_get.assert_called_once_with(
+        f"{DB_SERVICE_URL}/todo/get_by_date/123",
+        params={"start_date": "2024-12-01", "end_date": "2024-12-07"}
+    )
+
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_week_plan_request_exception(mock_current_user, mock_requests_get, client):
+    """Test get_week_plan when a request exception occurs."""
+    mock_current_user.id = "123"
+    mock_requests_get.side_effect = requests.RequestException("Network error")
+    response = client.get("/plan/week?start_date=2024-12-01&end_date=2024-12-07")
+
+    assert response.status_code == 500
+    assert response.json == {"error": "An error occurred", "message": "Network error"}
+    mock_requests_get.assert_called_once_with(
+        f"{DB_SERVICE_URL}/todo/get_by_date/123",
+        params={"start_date": "2024-12-01", "end_date": "2024-12-07"}
+    )
+
+### Test get_month_plan function ###
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_month_plan_success(mock_current_user, mock_requests_get, client):
+    """Test get_month_plan with successful API call."""
+    mock_current_user.id = "123"
+    mock_requests_get.return_value.status_code = 200
+    mock_requests_get.return_value.json.return_value = [
+        {"date": "2024-12-01", "todo": [{"workout_name": "Push Ups"}]},
+        {"date": "2024-12-08", "todo": [{"workout_name": "Rest"}, {"workout_name": "Squats"}]},
+    ]
+    response = client.get("/plan/month?month=2024-12")
+
+    assert response.status_code == 200
+    assert response.json == {
+        "2024-12-01": ["Push Ups"],
+        "2024-12-08": ["Rest", "Squats"],
+        "2024-12-15": [],
+        "2024-12-22": [],
+        "2024-12-29": []
+    }
+    mock_requests_get.assert_called_once_with(
+        f"{DB_SERVICE_URL}/todo/get_by_date/123",
+        params={"start_date": "2024-12-01", "end_date": "2024-12-31"}
+    )
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_month_plan_api_failure(mock_current_user, mock_requests_get, client):
+    """Test get_month_plan when the API call fails."""
+    mock_current_user.id = "123"
+    mock_requests_get.return_value.status_code = 500
+    response = client.get("/plan/month?month=2024-12")
+
+    assert response.status_code == 500
+    assert response.json == {"error": "Failed to get todo list"}
+    mock_requests_get.assert_called_once_with(
+        f"{DB_SERVICE_URL}/todo/get_by_date/123",
+        params={"start_date": "2024-12-01", "end_date": "2024-12-31"}
+    )
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_month_plan_missing_month(mock_current_user, mock_requests_get, client):
+    """Test get_month_plan with missing month."""
+    mock_current_user.id = "123"
+    response = client.get("/plan/month")
+
+    assert response.status_code == 400
+    assert response.json == {"error": "month is required!"}
+    mock_requests_get.assert_not_called()
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_month_plan_request_exception(mock_current_user, mock_requests_get, client):
+    """Test get_month_plan when a request exception occurs."""
+    mock_current_user.id = "123"
+    mock_requests_get.side_effect = requests.RequestException("Network error")
+    response = client.get("/plan/month?month=2024-12")
+
+    assert response.status_code == 500
+    assert response.json == {"error": "An error occurred", "message": "Network error"}
+    mock_requests_get.assert_called_once_with(
+        f"{DB_SERVICE_URL}/todo/get_by_date/123",
+        params={"start_date": "2024-12-01", "end_date": "2024-12-31"}
+    )
+
+### Test user_profile route ###
+@patch("app.requests.get")
+@patch("app.render_template")
+@patch("app.current_user")
+def test_user_profile_success(mock_current_user, mock_render_template, mock_requests_get, client):
+    """Test fetching a user profile successfully."""
+    mock_current_user.id = "123"
+    mock_requests_get.return_value.status_code = 200
+    mock_requests_get.return_value.json.return_value = {"username": "testuser", "email": "test@example.com"}
+    mock_render_template.return_value = "Test User Profile Page"
+    response = client.get("/user")
+
+    assert response.status_code == 200
+    assert response.data.decode("utf-8") == "Test User Profile Page"
+    mock_requests_get.assert_called_once_with(f"{DB_SERVICE_URL}/users/get/123")
+    mock_render_template.assert_called_once_with("user.html", user={"username": "testuser", "email": "test@example.com"})
+
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_user_profile_not_found(mock_current_user, mock_requests_get, client):
+    """Test fetching a user profile that does not exist."""
+    mock_current_user.id = "123"
+    mock_requests_get.return_value.status_code = 404
+
+    response = client.get("/user")
+
+    assert response.status_code == 404
+    assert response.json == {"error": "User not found"}
+    mock_requests_get.assert_called_once_with(f"{DB_SERVICE_URL}/users/get/123")
+
+
+### Test /update route ###
+@patch("app.requests.put")
+@patch("app.current_user")
+def test_update_profile_post_success(mock_current_user, mock_requests_put, client):
+    """Test updating a profile successfully."""
+    mock_current_user.id = "123"
+    mock_requests_put.return_value.status_code = 200
+    mock_requests_put.return_value.json.return_value = {"success": True}
+
+    response = client.post("/update", json={"username": "newuser", "email": "new@example.com"})
+
+    assert response.status_code == 200
+    assert response.json == {"message": "Profile updated successfully."}
+    mock_requests_put.assert_called_once_with(
+        f"{DB_SERVICE_URL}/users/update/123",
+        json={"username": "newuser", "email": "new@example.com"}
+    )
+
+
+@patch("app.requests.put")
+@patch("app.current_user")
+def test_update_profile_post_failure(mock_current_user, mock_requests_put, client):
+    """Test updating a profile when the API call fails."""
+    mock_current_user.id = "123"
+    mock_requests_put.return_value.status_code = 500
+
+    response = client.post("/update", json={"username": "newuser", "email": "new@example.com"})
+
+    assert response.status_code == 500
+    assert response.json == {"message": "Failed to update profile."}
+    mock_requests_put.assert_called_once_with(
+        f"{DB_SERVICE_URL}/users/update/123",
+        json={"username": "newuser", "email": "new@example.com"}
+    )
+
+@patch("app.requests.put")
+@patch("app.current_user")
+def test_update_profile_post_request_exception(mock_current_user, mock_requests_put, client):
+    """Test updating a profile when a request exception occurs."""
+    mock_current_user.id = "123"
+    mock_requests_put.side_effect = requests.RequestException("Network error")
+    response = client.post("/update", json={"username": "newuser", "email": "new@example.com"})
+
+    assert response.status_code == 500
+    assert response.json == {"message": "Error updating profile."}
+    mock_requests_put.assert_called_once_with(
+        f"{DB_SERVICE_URL}/users/update/123",
+        json={"username": "newuser", "email": "new@example.com"}
+    )
+
+
+@patch("app.requests.get")
+@patch("app.render_template")
+@patch("app.current_user")
+def test_update_profile_get_success(mock_current_user, mock_render_template, mock_requests_get, client):
+    """Test the update profile route."""
+    mock_current_user.id = "123"
+    mock_requests_get.return_value.status_code = 200
+    mock_requests_get.return_value.json.return_value = {"username": "testuser", "email": "test@example.com"}
+    mock_render_template.return_value = "Mocked Update Profile Page"
+
+    response = client.get("/update")
+
+    assert response.status_code == 200
+    assert response.data.decode("utf-8") == "Mocked Update Profile Page"
+    mock_requests_get.assert_called_once_with(f"{DB_SERVICE_URL}/users/get/123")
+    mock_render_template.assert_called_once_with("update.html", user={"username": "testuser", "email": "test@example.com"})
+
+
+@patch("app.requests.get")
+@patch("app.render_template")
+@patch("app.current_user")
+def test_update_profile_get_failure(mock_current_user, mock_render_template, mock_requests_get, client):
+    """Test the update profile route when the API call fails."""
+    mock_current_user.id = "123"
+    mock_requests_get.side_effect = requests.RequestException("Network error")
+    mock_render_template.return_value = "Mocked Update Profile Page with Error"
+
+    response = client.get("/update")
+
+    assert response.status_code == 200
+    assert response.data.decode("utf-8") == "Mocked Update Profile Page with Error"
+    mock_requests_get.assert_called_once_with(f"{DB_SERVICE_URL}/users/get/123")
+    mock_render_template.assert_called_once_with("update.html", user={})
+
+### Test save_profile function ###
+@patch("app.update_user_by_id")
+@patch("app.current_user")
+def test_save_profile_success(mock_current_user, mock_update_user_by_id, client):
+    """Test saving a user profile successfully."""
+    mock_current_user.id = "123"
+    mock_update_user_by_id.return_value = True
+    response = client.post(
+        "/save-profile",
+        json={
+            "name": "testuser",
+            "sex": "Male",
+            "height": 180,
+            "weight": 75,
+            "goal_weight": 70,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json == {
+        "message": "User profile updated successfully.",
+        "updated_data": {
+            "name": "testuser",
+            "sex": "Male",
+            "height": 180,
+            "weight": 75,
+            "goal_weight": 70,
+        },
+    }
+    mock_update_user_by_id.assert_called_once_with(
+        "123",
+        {
+            "name": "testuser",
+            "sex": "Male",
+            "height": 180,
+            "weight": 75,
+            "goal_weight": 70,
+        },
+    )
+
+@patch("app.update_user_by_id")
+@patch("app.current_user")
+def test_save_profile_invalid_input(mock_current_user, mock_update_user_by_id, client):
+    """Test saving a user profile with invalid input."""
+    mock_current_user.id = "123"
+    response = client.post("/save-profile", json=None)
+
+    assert response.status_code == 415
+    assert response.json == None
+    mock_update_user_by_id.assert_not_called()
+
+@patch("app.update_user_by_id")
+@patch("app.current_user")
+def test_save_profile_no_valid_fields(mock_current_user, mock_update_user_by_id, client):
+    """Test saving a user profile with no valid fields to update."""
+    mock_current_user.id = "123"
+    response = client.post(
+        "/save-profile",
+        json={"invalid_field": "value"},
+    )
+    assert response.status_code == 400
+    assert response.json == {"error": "No valid fields to update"}
+    mock_update_user_by_id.assert_not_called()
+
+@patch("app.update_user_by_id")
+@patch("app.current_user")
+def test_save_profile_update_failure(mock_current_user, mock_update_user_by_id, client):
+    """Test saving a user profile when the API call fails."""
+    mock_current_user.id = "123"
+    mock_update_user_by_id.return_value = False
+    response = client.post(
+        "/save-profile",
+        json={
+            "name": "testuser",
+            "sex": "Male",
+        },
+    )
+    assert response.status_code == 500
+    assert response.json == {"error": "Failed to update profile"}
+    mock_update_user_by_id.assert_called_once_with(
+        "123",
+        {"name": "testuser", "sex": "Male"},
+    )
+
 
 '''
 ### Test edit function ###

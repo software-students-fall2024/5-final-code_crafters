@@ -837,8 +837,8 @@ def add_plan(date, plan: dict):
 @login_required
 def get_workout_data():
     """
-    获取用户的 To-Do 数据并按日期统计
-    返回每一天的任务数量
+    retrieve workout data from db-service and
+    return the number of workouts done per day.
     """
     try:
         user_id = current_user.id
