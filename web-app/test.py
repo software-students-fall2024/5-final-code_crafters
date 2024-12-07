@@ -362,19 +362,23 @@ def test_get_todo_request_exception(mock_current_user, mock_get):
 def test_get_today_todo_success(mock_current_user, mock_requests):
     """Test get_today_todo function with a successful API response."""
     mock_current_user.id = 123
+    eastern_time = datetime.now(ZoneInfo("America/New_York"))
+    utc_time = eastern_time.astimezone(ZoneInfo("UTC"))
+    today_date = utc_time.strftime("%Y-%m-%d")
+
     mock_requests.return_value.status_code = 200
     mock_requests.return_value.json.return_value = {
         "todo": [
-            {"id": 1, "time": datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d"), "task": "Test Task Today"},
-            {"id": 2, "time": "2024-12-01", "task": "Old Task"}
+            {"id": 1, "time": today_date, "task": "Test Task Today"},
+            {"id": 2, "time": "2024-12-01", "task": "Old Task"},
         ]
     }
 
     today_todo = get_today_todo()
-    
-    assert mock_requests.return_value.status_code == 200
-    # assert len(today_todo) == 1
-    # assert today_todo[0]["task"] == "Test Task Today"
+
+    assert len(today_todo) == 1
+    assert today_todo[0]["task"] == "Test Task Today"
+    assert today_todo[0]["time"] == today_date
     mock_requests.assert_called_once_with(f"{DB_SERVICE_URL}/todo/get/123")
 
 @patch("app.requests.get")
