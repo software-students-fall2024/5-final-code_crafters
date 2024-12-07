@@ -25,6 +25,8 @@ from app import (
     get_instruction,
     get_search_history,
     parse_voice_command,
+    insert_transcription_entry_api,
+    load_user,
 )
 import requests
 
@@ -32,7 +34,11 @@ import requests
 @pytest.fixture
 def client():
     """client fixture"""
-    return app.test_client()
+    app.config["TESTING"] = True
+    app.config["LOGIN_DISABLED"] = True
+    app.config["UPLOAD_FOLDER"] = "/tmp"
+    with app.test_client() as client:
+        yield client
 
 DB_SERVICE_URL = "http://db-service:5112/"
 
@@ -669,6 +675,791 @@ def test_get_exercise_in_todo_empty_list(mock_get_todo):
 
     assert result is None
     mock_get_todo.assert_called_once()
+
+### Test get instruction function ###
+@patch("app.get_exercise")
+def test_get_instruction_success(mock_get_exercise):
+    """Test get_instruction function with a valid exercise ID."""
+    mock_get_exercise.return_value = {
+        "workout_name": "Push-Ups",
+        "instruction": "Keep your back straight and lower yourself to the floor.",
+    }
+    res = get_instruction("exercise123")
+
+    assert res == {
+        "workout_name": "Push-Ups",
+        "instruction": "Keep your back straight and lower yourself to the floor.",
+    }
+    mock_get_exercise.assert_called_once_with("exercise123")
+
+
+@patch("app.get_exercise")
+def test_get_instruction_missing_instruction(mock_get_exercise):
+    """Test get_instruction function when instruction is missing."""
+    mock_get_exercise.return_value = {
+        "workout_name": "Sit-Ups",
+    }
+    res = get_instruction("exercise456")
+
+    assert res == {
+        "workout_name": "Sit-Ups",
+        "instruction": "No instructions for this exercise.",
+    }
+    mock_get_exercise.assert_called_once_with("exercise456")
+
+
+@patch("app.get_exercise")
+def test_get_instruction_exercise_not_found(mock_get_exercise):
+    """Test get_instruction function when the exercise is not found."""
+    mock_get_exercise.return_value = None
+    result = get_instruction("exercise789")
+
+    assert result == {"error": "Exercise with ID exercise789 not found."}
+    mock_get_exercise.assert_called_once_with("exercise789")
+
+### Test parse_voice_command function ###
+def test_parse_voice_command():
+    """Test the parse_voice_command function."""
+    transcription = "Use 25 kilograms for the workout."
+    result = parse_voice_command(transcription)
+    assert result == {"time": None, "groups": None, "weight": 25}
+    transcription = "Let's just chat today."
+    result = parse_voice_command(transcription)
+    assert result == {"time": None, "groups": None, "weight": None}
+    transcription = "Set 20 kg for 40 minutes and 2 groups."
+    result = parse_voice_command(transcription)
+    assert result == {"time": 40, "groups": 2, "weight": 20}
+    transcription = "Workout with 50 kg for 10 minutes and 3 groups."
+    result = parse_voice_command(transcription)
+    assert result == {"time": 10, "groups": 3, "weight": 50}
+
+### Test insert_transcription_entry_api function ###
+@patch("app.requests.post")
+@patch("app.current_user")
+def test_insert_transcription_entry_api_success(mock_current_user, mock_post):
+    """Test insert_transcription_entry_api function with successful API call."""
+    mock_current_user.id = 123
+    mock_post.return_value.status_code = 200
+    mock_post.return_value.json.return_value = {"id": "transcript_123"}
+
+    res = insert_transcription_entry_api(content="Test transcription.")
+
+    assert res == "transcript_123"
+    mock_post.assert_called_once_with(
+        f"{DB_SERVICE_URL}/transcriptions/add",
+        json={"user_id": 123, "content": "Test transcription."},
+    )
+
+
+@patch("app.requests.post")
+@patch("app.current_user")
+def test_insert_transcription_entry_api_failure(mock_current_user, mock_post):
+    """Test insert_transcription_entry_api function when the API returns an error."""
+    mock_current_user.id = 123
+    mock_post.return_value.status_code = 500
+    mock_post.return_value.json.return_value = {}
+
+    res = insert_transcription_entry_api(content="Test transcription.")
+
+    assert res is None
+    mock_post.assert_called_once_with(
+        f"{DB_SERVICE_URL}/transcriptions/add",
+        json={"user_id": 123, "content": "Test transcription."},
+    )
+
+
+@patch("app.requests.post")
+@patch("app.current_user")
+def test_insert_transcription_entry_api_request_exception(mock_current_user, mock_post):
+    """Test insert_transcription_entry_api function when a request exception occurs."""
+    mock_current_user.id = 123
+    mock_post.side_effect = requests.RequestException("API error")
+    result = insert_transcription_entry_api(content="This is a test transcription.")
+
+    assert result is None
+    mock_post.assert_called_once_with(
+        f"{DB_SERVICE_URL}/transcriptions/add",
+        json={"user_id": 123, "content": "This is a test transcription."},
+    )
+
+### Test load_user function ###
+@patch("app.User.get") 
+def test_load_user(mock_get):
+    """Test load_user function."""
+    mock_get.return_value = {"id": 123, "username": "testuser"}
+    result = load_user(123)
+
+    # Assertions
+    assert result == {"id": 123, "username": "testuser"}
+    mock_get.assert_called_once_with(123)
+
+
+### Test home route ###
+def test_home_redirect(client):
+    """Test that the home route redirects to the To-Do page."""
+    response = client.get("/")
+    assert response.status_code == 302
+    assert response.location.endswith("/todo") 
+
+### Test signup_page route ###
+def test_signup_page(client):
+    """Test that the signup page renders the signup template."""
+    response = client.get("/register")
+    assert response.status_code == 200
+    assert b"<h1>Sign Up</h1>" in response.data
+
+
+### Test login_page route ###
+def test_login_page(client):
+    """Test that the login page renders the login template."""
+    response = client.get("/login")
+    assert response.status_code == 200
+    assert b"<h1>Login</h1>" in response.data  
+
+### Test register route ###
+@patch("app.requests.post")
+def test_register_success(mock_post, client):
+    """Test successful user registration."""
+    mock_post.return_value.status_code = 200
+    mock_post.return_value.json.return_value = {"user_id": 123}
+
+    response = client.post(
+        "/register", data={"username": "newuser", "password": "password123"}
+    )
+
+    assert response.status_code == 200
+    assert response.json["success"] is True
+    assert response.json["message"] == "Register successful! Please Login now."
+    assert response.json["redirect_url"] == "/todo"
+
+
+@patch("app.requests.post")
+def test_register_missing_credentials(mock_post, client):
+    """Test registration with missing username or password."""
+    response = client.post("/register", data={"username": "", "password": "password123"})
+    assert response.status_code == 400
+    assert response.json["success"] is False
+    assert response.json["message"] == "Username and password are required!"
+
+    response = client.post("/register", data={"username": "newuser", "password": ""})
+    assert response.status_code == 400
+    assert response.json["success"] is False
+    assert response.json["message"] == "Username and password are required!"
+    mock_post.assert_not_called()
+
+
+@patch("app.requests.post")
+def test_register_service_error(mock_post, client):
+    """Test registration when the database service returns an error."""
+    mock_post.return_value.status_code = 500
+    mock_post.return_value.json.return_value = {"message": "Internal Server Error"}
+
+    response = client.post(
+        "/register", data={"username": "newuser", "password": "password123"}
+    )
+
+    assert response.status_code == 400
+    assert response.json["success"] is False
+    assert response.json["message"] == "Internal Server Error"
+
+
+@patch("app.requests.post")
+def test_register_request_exception(mock_post, client):
+    """Test registration when a request exception occurs."""
+    mock_post.side_effect = requests.RequestException("Service unreachable")
+    response = client.post(
+        "/register", data={"username": "newuser", "password": "password123"}
+    )
+
+    assert response.status_code == 500
+    assert response.json["success"] is False
+    assert response.json["message"] == "Error communicating with database service"
+
+### Test login route ###
+@patch("app.requests.post")
+@patch("app.login_user")
+@patch("app.User")
+def test_login_success(mock_user, mock_login_user, mock_requests_post, client):
+    """Test successful login."""
+    mock_requests_post.return_value.status_code = 200
+    mock_requests_post.return_value.json.return_value = {
+        "_id": "123",
+        "username": "testuser"
+    }
+    mock_user.return_value = MagicMock()
+    response = client.post("/login", data={"username": "testuser", "password": "testpassword"})
+
+    assert response.status_code == 200
+    assert response.json["message"] == "Login successful!"
+    assert response.json["success"] is True
+    mock_requests_post.assert_called_once_with(
+        f"{DB_SERVICE_URL}/users/auth",
+        json={"username": "testuser", "password": "testpassword"}
+    )
+    mock_login_user.assert_called_once_with(mock_user.return_value)
+
+
+@patch("app.requests.post")
+def test_login_invalid_credentials(mock_requests_post, client):
+    """Test login with invalid username or password."""
+    mock_requests_post.return_value.status_code = 401
+    mock_requests_post.return_value.json.return_value = {}
+    response = client.post("/login", data={"username": "wronguser", "password": "wrongpassword"})
+    assert response.status_code == 401
+    assert response.json["message"] == "Invalid username or password!"
+    assert response.json["success"] is False
+    mock_requests_post.assert_called_once_with(
+        f"{DB_SERVICE_URL}/users/auth",
+        json={"username": "wronguser", "password": "wrongpassword"}
+    )
+
+
+@patch("app.requests.post")
+def test_login_internal_error(mock_requests_post, client):
+    """Test login when an internal error occurs."""
+    mock_requests_post.side_effect = requests.RequestException("Service unavailable")
+    response = client.post("/login", data={"username": "testuser", "password": "testpassword"})
+
+    assert response.status_code == 500
+    assert response.json["message"] == "Login failed due to internal error!"
+    mock_requests_post.assert_called_once_with(
+        f"{DB_SERVICE_URL}/users/auth",
+        json={"username": "testuser", "password": "testpassword"}
+    )
+
+### Test logout route ###
+@patch("app.logout_user")
+@patch("app.current_user")
+def test_logout(mock_current_user, mock_logout_user, client):
+    """Test that an authenticated user can log out and is redirected to the login page."""
+    with app.app_context():
+        mock_current_user.is_authenticated = True
+        response = client.get("/logout")
+
+        assert response.status_code == 302
+        assert response.location.endswith("/login")
+        mock_logout_user.assert_called_once()
+
+
+@patch("app.current_user")
+def test_logout_unauthenticated_user(mock_current_user, client):
+    """Test that an unauthenticated user trying to logout is redirected to the login page."""
+    mock_current_user.is_authenticated = False
+    response = client.get("/logout")
+
+    assert response.status_code == 302
+    assert "/login" in response.location
+
+
+### Test todo route ###
+@patch("app.get_todo")
+@patch("app.current_user")
+def test_todo_route(mock_current_user, mock_get_todo, client):
+    """Test tthe todo route"""
+    mock_current_user.is_authenticated = True
+    mock_current_user.id = 123 
+    mock_get_todo.return_value = [
+        {"exercise_id": "1", "name": "Push Ups"},
+        {"exercise_id": "2", "name": "Squats"},
+    ]
+    response = client.get("/todo")
+
+    assert response.status_code == 200
+    assert b"exercise-btn" in response.data
+    mock_get_todo.assert_called_once()
+
+@patch("app.current_user")
+def test_todo_route_unauthenticated(mock_current_user, client):
+    """Test that an unauthenticated user is redirected to the login page when accessing /todo."""
+    mock_current_user.is_authenticated = False
+    response = client.get("/todo")
+
+    assert response.status_code == 200
+
+### Test /search route ###
+@patch("app.search_exercise")
+@patch("app.add_search_history_api")
+@patch("app.url_for")
+def test_search_post_success(mock_url_for, mock_add_search_history_api, mock_search_exercise, client):
+    """Test POST search with successful results."""
+    mock_search_exercise.return_value = [
+        {"exercise_id": "1", "name": "Push Ups"},
+        {"exercise_id": "2", "name": "Sit Ups"}
+    ]
+    mock_url_for.return_value = "/add"
+    with client.session_transaction() as session:
+        session["results"] = []
+    response = client.post("/search", data={"query": "push"}, follow_redirects=False)
+    assert response.status_code == 302
+    assert response.location.endswith("/add")
+    mock_search_exercise.assert_called_once_with("push")
+    mock_add_search_history_api.assert_called_once_with("push")
+    with client.session_transaction() as session:
+        assert session["results"] == mock_search_exercise.return_value
+
+
+@patch("app.search_exercise")
+def test_search_post_empty_query(mock_search_exercise, client):
+    """Test POST search with an empty query."""
+    response = client.post("/search", data={"query": ""}, follow_redirects=False)
+    assert response.status_code == 400
+    assert response.json["message"] == "Search content cannot be empty."
+    mock_search_exercise.assert_not_called()
+
+
+@patch("app.search_exercise")
+def test_search_post_no_results(mock_search_exercise, client):
+    """Test POST search with no matching results."""
+    mock_search_exercise.return_value = []
+    response = client.post("/search", data={"query": "nonexistent"}, follow_redirects=False)
+
+    assert response.status_code == 404
+    assert response.json["message"] == "Exercise was not found."
+    mock_search_exercise.assert_called_once_with("nonexistent")
+
+
+@patch("app.get_search_history")
+@patch("app.search_exercise")
+@patch("app.render_template")
+def test_search_get(mock_render_template, mock_search_exercise, mock_get_search_history, client):
+    """Test GET search to display search history and suggestions."""
+    mock_get_search_history.return_value = [{"content": "push"}, {"content": "squats"}]
+    mock_search_exercise.side_effect = [
+        [{"exercise_id": "1", "name": "Push Ups"}],
+        [{"exercise_id": "2", "name": "Squats"}],
+    ]
+    mock_render_template.return_value = "Test Search Page"
+    response = client.get("/search", follow_redirects=False)
+
+    assert response.status_code == 200
+    assert response.data.decode("utf-8") == "Test Search Page"
+    mock_get_search_history.assert_called_once()
+    mock_search_exercise.assert_any_call("push")
+    mock_search_exercise.assert_any_call("squats")
+
+    mock_render_template.assert_called_once_with(
+        "search.html",
+        exercises=[
+            {"exercise_id": "1", "name": "Push Ups"},
+            {"exercise_id": "2", "name": "Squats"},
+        ]
+    )
+
+
+### Test add route ###
+@patch("app.render_template")
+def test_add_route(mock_render_template, client):
+    """Test the add route."""
+    with client.session_transaction() as session:
+        session["results"] = [
+            {"exercise_id": "1", "name": "Push Ups"},
+            {"exercise_id": "2", "name": "Squats"},
+        ]
+    mock_render_template.return_value = "Test Add Page"
+
+    response = client.get("/add")
+
+    assert response.status_code == 200
+    assert response.data.decode("utf-8") == "Test Add Page"
+    mock_render_template.assert_called_once_with(
+        "add.html",
+        exercises=session["results"],
+        exercises_length=len(session["results"]),
+    )
+
+
+### Test add_exercise route ###
+@patch("app.add_todo_api")
+def test_add_exercise_success(mock_add_todo_api, client):
+    """Test adding an exercise successfully."""
+    mock_add_todo_api.return_value = True
+    response = client.post("/add_exercise?exercise_id=1&date=2024-12-05")
+
+    assert response.status_code == 200
+    assert response.json["message"] == "Added successfully"
+    mock_add_todo_api.assert_called_once_with("1", "2024-12-05")
+
+
+@patch("app.add_todo_api")
+def test_add_exercise_missing_exercise_id(mock_add_todo_api, client):
+    """Test adding an exercise with a missing exercise_id."""
+    response = client.post("/add_exercise?date=2024-12-05")
+    assert response.status_code == 400
+    assert response.json["message"] == "Exercise ID is required"
+    mock_add_todo_api.assert_not_called()
+
+
+@patch("app.add_todo_api")
+def test_add_exercise_missing_date(mock_add_todo_api, client):
+    """Test adding an exercise with a missing date."""
+    response = client.post("/add_exercise?exercise_id=1")
+
+    assert response.status_code == 400
+    assert response.json["message"] == "Date is required"
+    mock_add_todo_api.assert_not_called()
+
+
+@patch("app.add_todo_api")
+def test_add_exercise_failure(mock_add_todo_api, client):
+    """Test adding an exercise when the API call fails."""
+    mock_add_todo_api.return_value = False
+    response = client.post("/add_exercise?exercise_id=1&date=2024-12-05")
+
+    assert response.status_code == 400
+    assert response.json["message"] == "Failed to add"
+    mock_add_todo_api.assert_called_once_with("1", "2024-12-05")
+
+### Test /edit route ###
+@patch("app.requests.get")
+@patch("app.render_template")
+@patch("app.current_user")
+def test_get_edit_success(mock_current_user, mock_render_template, mock_requests_get, client):
+    """Test successful retrieval of exercise details for editing."""
+    mock_current_user.id = "123"
+    mock_requests_get.return_value.status_code = 200
+    mock_requests_get.return_value.json.return_value = {
+        "task": "Push Ups",
+        "reps": 10,
+        "weight": 50
+    }
+
+    mock_render_template.return_value = "Test Edit Page"
+    response = client.get("/edit?exercise_todo_id=1&date=Thursday, December 04, 2024")
+
+    assert response.status_code == 200
+    assert response.data.decode("utf-8") == "Test Edit Page"
+
+    mock_requests_get.assert_called_once_with(
+        f"{DB_SERVICE_URL}/todo/get_exercise_by_id",
+        params={
+            "user_id": "123",
+            "date": "2024-12-04",
+            "exercise_todo_id": "1"
+        }
+    )
+
+    mock_render_template.assert_called_once_with(
+        "edit.html",
+        exercise_todo_id="1",
+        date="2024-12-04",
+        exercise={"task": "Push Ups", "reps": 10, "weight": 50},
+    )
+
+
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_edit_missing_param(mock_current_user, mock_requests_get, client):
+    """Test editing an exercise with missing parameters."""
+    mock_current_user.id = "123"
+    response = client.get("/edit?date=Friday, December 05, 2024")
+
+    assert response.status_code == 400
+    assert response.json["message"] == "exercise_todo_id and date are required"
+    mock_requests_get.assert_not_called()
+
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_edit_exercise_not_found(mock_current_user, mock_requests_get, client):
+    """Test editing an exercise that is not found."""
+    mock_current_user.id = "123"
+    mock_requests_get.return_value.status_code = 404
+    response = client.get("/edit?exercise_todo_id=1&date=Friday, December 05, 2024")
+
+    assert response.status_code == 404
+    assert response.json["message"] == "Exercise not found in your To-Do list"
+    mock_requests_get.assert_called_once_with(
+        f"{DB_SERVICE_URL}/todo/get_exercise_by_id",
+        params={
+            "user_id": "123",
+            "date": "2024-12-05",
+            "exercise_todo_id": "1"
+        }
+    )
+
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_edit_request_exception(mock_current_user, mock_requests_get, client):
+    """Test editing an exercise when an exception occurs during the request."""
+    mock_current_user.id = "123"
+    mock_requests_get.side_effect = requests.RequestException("Service unavailable")
+    response = client.get("/edit?exercise_todo_id=1&date=Friday, December 05, 2024")
+
+    assert response.status_code == 404
+    assert response.json["message"] == "Exercise not found in your To-Do list"
+    mock_requests_get.assert_called_once_with(
+        f"{DB_SERVICE_URL}/todo/get_exercise_by_id",
+        params={
+            "user_id": "123",
+            "date": "2024-12-05",
+            "exercise_todo_id": "1"
+        }
+    )
+
+### Test post edit route ###
+@patch("app.requests.post")
+@patch("app.current_user")
+def test_post_edit_success(mock_current_user, mock_requests_post, client):
+    """Test successful update of exercise details."""
+    mock_current_user.id = "123"
+    mock_requests_post.return_value.status_code = 200
+    response = client.post(
+        "/edit",
+        data={
+            "exercise_todo_id": "1",
+            "date": "2024-12-05",
+            "working_time": "20",
+            "weight": "50",
+            "reps": "10"
+        }
+    )
+
+    assert response.status_code == 200
+    assert response.json["message"] == "Exercise updated successfully"
+    mock_requests_post.assert_called_once_with(
+        f"{DB_SERVICE_URL}/todo/update_exercise",
+        json={
+            "user_id": "123",
+            "date": "2024-12-05",
+            "exercise_todo_id": "1",
+            "update_fields": {
+                "working_time": "20",
+                "weight": "50",
+                "reps": "10"
+            }
+        }
+    )
+
+@patch("app.requests.post")
+@patch("app.current_user")
+def test_post_edit_missing_param(mock_current_user, mock_requests_post, client):
+    """Test updating an exercise with missing parameters."""
+    mock_current_user.id = "123"
+    response = client.post(
+        "/edit",
+        data={
+            "date": "2024-12-05",
+            "working_time": "20",
+            "weight": "50"
+        }
+    )
+    assert response.status_code == 400
+    assert response.json["message"] == "exercise_todo_id and date are required"
+    mock_requests_post.assert_not_called()
+
+
+@patch("app.requests.post")
+@patch("app.current_user")
+def test_post_edit_no_fields_to_update(mock_current_user, mock_requests_post, client):
+    """Test updating an exercise with no fields provided."""
+    mock_current_user.id = "123"
+    response = client.post(
+        "/edit",
+        data={
+            "exercise_todo_id": "1",
+            "date": "2024-12-05"
+        }
+    )
+
+    assert response.status_code == 400
+    assert response.json["message"] == "No fields to update"
+    mock_requests_post.assert_not_called()
+
+
+@patch("app.requests.post")
+@patch("app.current_user")
+def test_post_edit_api_failure(mock_current_user, mock_requests_post, client):
+    """Test updating an exercise when the external API fails."""
+    mock_current_user.id = "123"
+    mock_requests_post.return_value.status_code = 500
+
+    response = client.post(
+        "/edit",
+        data={
+            "exercise_todo_id": "1",
+            "date": "2024-12-05",
+            "working_time": "30"
+        }
+    )
+    assert response.status_code == 500
+    assert response.json["message"] == "Failed to update exercise"
+
+    mock_requests_post.assert_called_once_with(
+        f"{DB_SERVICE_URL}/todo/update_exercise",
+        json={
+            "user_id": "123",
+            "date": "2024-12-05",
+            "exercise_todo_id": "1",
+            "update_fields": {
+                "working_time": "30"
+            }
+        }
+    )
+
+
+@patch("app.requests.post")
+@patch("app.current_user")
+def test_post_edit_request_exception(mock_current_user, mock_requests_post, client):
+    """Test updating an exercise when a request exception occurs."""
+    mock_current_user.id = "123"
+    mock_requests_post.side_effect = requests.RequestException("Service unavailable")
+
+    response = client.post(
+        "/edit",
+        data={
+            "exercise_todo_id": "1",
+            "date": "2024-12-05",
+            "working_time": "30"
+        }
+    )
+
+    assert response.status_code == 500
+    assert response.json["message"] == "An error occurred while updating the exercise"
+
+    mock_requests_post.assert_called_once_with(
+        f"{DB_SERVICE_URL}/todo/update_exercise",
+        json={
+            "user_id": "123",
+            "date": "2024-12-05",
+            "exercise_todo_id": "1",
+            "update_fields": {
+                "working_time": "30"
+            }
+        }
+    )
+
+### Test instructions route ###
+@patch("app.get_instruction")
+@patch("app.render_template")
+def test_instructions_success(mock_render_template, mock_get_instruction, client):
+    """Test fetching and displaying exercise instructions successfully."""
+    mock_get_instruction.return_value = {
+        "workout_name": "Push Ups",
+        "instruction": "Keep your back straight and go down slowly."
+    }
+    mock_render_template.return_value = "Test Instruction Page"
+    response = client.get("/instructions?exercise_id=1")
+
+    assert response.status_code == 200
+    assert response.data.decode("utf-8") == "Test Instruction Page"
+    mock_get_instruction.assert_called_once_with("1")
+    mock_render_template.assert_called_once_with(
+        "instructions.html",
+        exercise={
+            "workout_name": "Push Ups",
+            "instruction": "Keep your back straight and go down slowly."
+        }
+    )
+
+@patch("app.get_instruction")
+def test_instructions_exercise_not_found(mock_get_instruction, client):
+    """Test fetching instructions when the exercise is not found."""
+    mock_get_instruction.return_value = {"error": "Exercise not found"}
+    response = client.get("/instructions?exercise_id=invalid")
+
+    assert response.status_code == 404
+    assert response.json["message"] == "Exercise not found"
+    mock_get_instruction.assert_called_once_with("invalid")
+
+
+### Test upload_audio function ###
+def test_upload_audio_no_file(client):
+    # pylint: disable=redefined-outer-name
+    """Test audio upload with no file."""
+    response = client.post("/upload-audio", data={}, content_type="multipart/form-data")
+    assert response.status_code == 400
+    assert response.json["error"] == "No audio file uploaded"
+
+
+@patch("subprocess.run")
+def test_upload_audio_success(mock_subprocess, client):
+    # pylint: disable=redefined-outer-name
+    """Test successful audio upload with mocked transcription."""
+    mock_subprocess.run.side_effect = subprocess.CalledProcessError(1, "ffmpeg")
+    test_audio_path = "/tmp/test_audio.mp3"
+    with open(test_audio_path, "wb") as f:
+        f.write(b"dummy audio data")
+
+    with open(test_audio_path, "rb") as audio_file:
+        data = {"audio": (audio_file, "test_audio.mp3")}
+        response = client.post(
+            "/upload-audio", data=data, content_type="multipart/form-data"
+        )
+
+    assert response.status_code == 200
+
+### Test upload_transcription function ###
+@patch("app.insert_transcription_entry_api")
+@patch("app.current_user")
+def test_upload_transcription_success(
+    mock_current_user, mock_insert_transcription_entry_api, client
+):
+    """Test successful transcription upload."""
+    # pylint: disable=redefined-outer-name
+    mock_current_user.is_authenticated = True
+    mock_current_user.id = "507f1f77bcf86cd799439011"
+    mock_insert_transcription_entry_api.return_value = "507f1f77bcf86cd799439012"
+
+    load = {"content": "This is a transcription test."}
+    response = client.post(
+        "/upload-transcription",
+        data=json.dumps(load),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    response_data = response.get_json()
+    assert response_data == {
+        "message": "Transcription saved successfully!",
+        "id": "507f1f77bcf86cd799439012",
+    }
+
+def test_upload_transcription_invalid_content_type(client):
+    """Test invalid content type."""
+    # pylint: disable=redefined-outer-name
+    response = client.post(
+        "/upload-transcription",
+        data="This is not JSON",
+        content_type="text/plain",
+    )
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "Invalid content type. JSON expected"}
+
+
+def test_upload_transcription_missing_content(client):
+    """Test missing transcription content."""
+    # pylint: disable=redefined-outer-name
+    load = {}
+    response = client.post(
+        "/upload-transcription",
+        data=json.dumps(load),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "Content is required"}
+
+@patch("app.insert_transcription_entry_api")
+@patch("app.current_user")
+def test_upload_transcription_save_failure(
+    mock_current_user, mock_transcription_entry_api, client
+):
+    """Test transcription save fail."""
+    # pylint: disable=redefined-outer-name
+    mock_current_user.is_authenticated = True
+    mock_current_user.id = "507f1f77bcf86cd799439011"
+    mock_transcription_entry_api.return_value = None
+    load = {"content": "This is a transcription test."}
+    response = client.post(
+        "/upload-transcription",
+        data=json.dumps(load),
+        content_type="application/json",
+    )
+    assert response.status_code == 500
+    assert response.get_json() == {"error": "Failed to save transcription"}
+
 '''
 ### Test edit function ###
 @patch("app.get_exercise_in_todo")
@@ -1429,77 +2220,7 @@ def test_get_matching_exercises_from_history_with_partial_matches(
     mock_search_exercise_rigid.assert_any_call("exercise2")
 
 
-### Test register function ###
-def test_register_missing_username_password(client):
-    """Test register with missing username password"""
-    # pylint: disable=redefined-outer-name
-    # missing username
-    response = client.post("/register", data={"password": "testpassword"})
-    assert response.status_code == 400
-    assert response.json["message"] == "Username and password are required!"
 
-    # missing password
-    response = client.post("/register", data={"username": "testuser"})
-    assert response.status_code == 400
-    assert response.json["message"] == "Username and password are required!"
-
-
-# existing username
-@patch("app.users_collection.find_one")
-def test_register_existing_username(mock_find_one, client):
-    """Test register with existing usernamepy"""
-    # pylint: disable=redefined-outer-name
-    mock_find_one.return_value = {"username": "testuser"}
-
-    response = client.post(
-        "/register", data={"username": "testuser", "password": "testpassword"}
-    )
-    assert response.status_code == 400
-    assert response.json["message"] == "Username already exists!"
-
-
-# successful registration
-@patch("app.users_collection.find_one")
-@patch("app.users_collection.insert_one")
-@patch("app.todo_collection.insert_one")
-@patch("app.generate_password_hash")
-def test_register_successful(
-    mock_generate_password_hash,
-    mock_insert_todo,
-    mock_insert_user,
-    mock_find_one,
-    client,
-):
-    """Test register successful"""
-    # pylint: disable=redefined-outer-name
-    mock_find_one.return_value = None
-    mock_generate_password_hash.return_value = "hashed_password"
-    mock_insert_user.return_value.inserted_id = "mock_user_id"
-    mock_insert_todo.return_value = MagicMock()
-
-    # pylint: disable=redefined-outer-name
-    response = client.post(
-        "/register", data={"username": "newuser", "password": "newpassword"}
-    )
-    response_datetime = datetime.utcnow()
-
-    assert response.status_code == 200
-    assert response.json["message"] == "Registration successful! Please log in."
-    assert response.json["success"] is True
-    mock_generate_password_hash.assert_called_once_with(
-        "newpassword", method="pbkdf2:sha256"
-    )
-    mock_insert_user.assert_called_once_with(
-        {"username": "newuser", "password": "hashed_password"}
-    )
-
-    # ignore tiny time differences
-    actual_call_args = mock_insert_todo.call_args[0][0]
-    assert actual_call_args["user_id"] == "mock_user_id"
-    assert actual_call_args["date"].replace(microsecond=0) == response_datetime.replace(
-        microsecond=0
-    )
-    assert actual_call_args["todo"] == []
 
 
 ### Test login page function ###
@@ -1716,21 +2437,7 @@ def test_upload_audio_transcription_error(client):
     assert response.status_code == 500, "Expected server error for failed transcription"
 
 
-### Test parse_voice_command function ###
-def test_parse_voice_command():
-    """Test the parse_voice_command function."""
-    transcription = "Use 25 kilograms for the workout."
-    result = parse_voice_command(transcription)
-    assert result == {"time": None, "groups": None, "weight": 25}
-    transcription = "Let's just chat today."
-    result = parse_voice_command(transcription)
-    assert result == {"time": None, "groups": None, "weight": None}
-    transcription = "Set 20 kg for 40 minutes and 2 groups."
-    result = parse_voice_command(transcription)
-    assert result == {"time": 40, "groups": 2, "weight": 20}
-    transcription = "Workout with 50 kg for 10 minutes and 3 groups."
-    result = parse_voice_command(transcription)
-    assert result == {"time": 10, "groups": 3, "weight": 50}
+
 
 
 ### Test upload_transcription function ###
