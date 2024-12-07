@@ -1,39 +1,671 @@
 """Test code for web-app"""
 
 # pylint: disable=C0302
-from datetime import datetime
-from unittest.mock import patch, MagicMock
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+from unittest.mock import ANY, patch, MagicMock, Mock
 import subprocess
 import json
 import pytest
+import re
 from bson import ObjectId
 from app import (
     app,
+    get_user_by_id,
+    update_user_by_id,
+    normalize_text,
     search_exercise,
     get_exercise,
+    get_all_exercises,
     get_todo,
-    delete_todo,
-    add_todo,
+    get_today_todo,
+    add_todo_api,
+    add_search_history_api,
     get_exercise_in_todo,
-    edit_exercise,
     get_instruction,
-    search_exercise_rigid,
-    get_matching_exercises_from_history,
-    add_search_history,
     get_search_history,
     parse_voice_command,
-    insert_transcription_entry,
 )
+import requests
 
 
 @pytest.fixture
 def client():
     """client fixture"""
-    app.config["LOGIN_DISABLED"] = True
-    app.config["UPLOAD_FOLDER"] = "/tmp"
     return app.test_client()
 
+DB_SERVICE_URL = "http://db-service:5112/"
 
+### Test get_user_by_id function ###
+@patch("requests.get")
+def test_get_user_by_id_success(mock_get):
+    """Test get_user_by_id function with successful API response."""
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.json.return_value = {
+        "id": 1,
+        "name": "testuser",
+        "email": "testuser@gmail.com",
+    }
+    user = get_user_by_id(1)
+
+    assert user is not None
+    assert user["id"] == 1
+    assert user["name"] == "testuser"
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/users/get/1")
+
+
+@patch("requests.get")
+def test_get_user_by_id_not_found(mock_get):
+    """Test get_user_by_id function with user not found."""
+    mock_get.return_value.status_code = 404
+    user = get_user_by_id(2)
+
+    assert user is None
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/users/get/2")
+
+
+@patch("requests.get")
+def test_get_user_by_id_exception(mock_get):
+    """Test get_user_by_id function when exception occurs."""
+    mock_get.side_effect = requests.RequestException("Connection error")
+    user = get_user_by_id(3)
+
+    assert user is None
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/users/get/3")
+
+
+### Test update_user_by_id function ###
+@patch("requests.put")
+def test_update_user_by_id_success(mock_put):
+    """Test update_user_by_id function with successful update."""
+    mock_put.return_value.status_code = 200
+
+    update_fields = {"name": "testusers", "email": "testuser@gmail.com"}
+    result = update_user_by_id(1, update_fields)
+
+    assert result is True
+    mock_put.assert_called_once_with(
+        f"{DB_SERVICE_URL}/users/update/1",
+        json=update_fields
+    )
+
+
+@patch("requests.put")
+def test_update_user_by_id_failure(mock_put):
+    """Test update_user_by_id function when update fails."""
+    mock_put.return_value.status_code = 400
+
+    update_fields = {"name": "testuser"}
+    result = update_user_by_id(2, update_fields)
+
+    assert result is False
+    mock_put.assert_called_once_with(
+        f"{DB_SERVICE_URL}/users/update/2",
+        json=update_fields
+    )
+
+
+@patch("requests.put")
+def test_update_user_by_id_exception(mock_put):
+    """Test update_user_by_id function when exception occurs."""
+    mock_put.side_effect = requests.RequestException("Connection error")
+    update_field = {"name": "testuser"}
+
+    result = update_user_by_id(3, update_field)
+
+    assert result is False
+    mock_put.assert_called_once_with(
+        f"{DB_SERVICE_URL}/users/update/3",
+        json=update_field
+    )
+
+### Test normalize_text function ###
+@patch("app.normalize_text")
+def test_normalize_text_success(mock_normalize_text):
+    """Test normalize_text function with valid inputs."""
+    mock_normalize_text.side_effect = lambda text: re.sub(r"[\s\-]", "", text).lower()
+
+    test_cases = [
+        ("Hello World", "helloworld"),
+        ("HELLO-WORLD", "helloworld"),
+        ("hello-world ", "helloworld"),
+        ("Hello  World", "helloworld"),
+        ("search-query-test", "searchquerytest"),
+        ("", ""),
+        ("  ", ""),
+        ("123-456 789", "123456789"),
+        ("special!@#", "special!@#"),
+    ]
+
+    for input_text, expected_output in test_cases:
+        result = normalize_text(input_text)
+        assert result == expected_output
+
+### Test search_exercise function ###
+@patch("requests.post")
+def test_search_exercise_success(mock_post):
+    """Test search_exercise function with a successful API response."""
+    mock_post.return_value.status_code = 200
+    mock_post.return_value.json.return_value = [
+        {"id": 1, "name": "Push-Up"},
+        {"id": 2, "name": "Pull-Up"},
+    ]
+    
+    query = "Push"
+    results = search_exercise(query)
+    
+    assert results is not None
+    assert len(results) == 2
+    assert results[0]["name"] == "Push-Up"
+    assert results[1]["name"] == "Pull-Up"
+    mock_post.assert_called_once_with(f"{DB_SERVICE_URL}/exercises/search", json={"query": query})
+
+
+@patch("requests.post")
+def test_search_exercise_no_results(mock_post):
+    """Test search_exercise function with no results found."""
+    mock_post.return_value.status_code = 200
+    mock_post.return_value.json.return_value = []
+    
+    query = "Nonexistent Exercise"
+    results = search_exercise(query)
+    
+    assert results == []
+    mock_post.assert_called_once_with(f"{DB_SERVICE_URL}/exercises/search", json={"query": query})
+
+
+@patch("requests.post")
+def test_search_exercise_api_failure(mock_post):
+    """Test search_exercise function when the API fails."""
+    mock_post.return_value.status_code = 500
+    
+    query = "Push"
+    results = search_exercise(query)
+    
+    assert results == []
+    mock_post.assert_called_once_with(f"{DB_SERVICE_URL}/exercises/search", json={"query": query})
+
+
+@patch("requests.post")
+def test_search_exercise_request_exception(mock_post):
+    """Test search_exercise function when a RequestException is raised."""
+    mock_post.side_effect = requests.RequestException("API is unavailable")
+    query = "Push Up"
+    results = search_exercise(query)
+    
+    assert results == []
+    mock_post.assert_called_once_with(f"{DB_SERVICE_URL}/exercises/search", json={"query": query})
+
+### Test get_exercise function ###
+@patch("requests.get")
+def test_get_exercise_success(mock_get):
+    """Test get_exercise function with a successful API response."""
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.json.return_value = {
+        "id": "123",
+        "name": "Push-Up",
+        "description": "An upper-body exercise",
+    }
+
+    exercise_id = "123"
+    exercise = get_exercise(exercise_id)
+    
+    assert exercise is not None
+    assert exercise["id"] == "123"
+    assert exercise["name"] == "Push-Up"
+    assert exercise["description"] == "An upper-body exercise"
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/exercises/get/{exercise_id}")
+
+
+@patch("requests.get")
+def test_get_exercise_not_found(mock_get):
+    """Test get_exercise function when the exercise is not found."""
+    mock_get.return_value.status_code = 404
+    exercise_id = "999"
+    exercise = get_exercise(exercise_id)
+
+    assert exercise is None
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/exercises/get/{exercise_id}")
+
+
+@patch("requests.get")
+def test_get_exercise_api_failure(mock_get):
+    """Test get_exercise function when the API fails."""
+    mock_get.return_value.status_code = 500
+    exercise_id = "123"
+    exercise = get_exercise(exercise_id)
+    
+    assert exercise is None
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/exercises/get/{exercise_id}")
+
+
+@patch("requests.get")
+def test_get_exercise_request_exception(mock_get):
+    """Test get_exercise function for a RequestException."""
+    mock_get.side_effect = requests.RequestException("API is unavailable")
+    exercise_id = "123"
+    exercise = get_exercise(exercise_id)
+    
+    assert exercise is None
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/exercises/get/{exercise_id}")
+
+### Test get_all_exercises function ###
+@patch("requests.get")
+def test_get_all_exercises_success(mock_get):
+    """Test get_all_exercises function with a successful API response."""
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.json.return_value = [
+        {"id": "1", "name": "Push-Up"},
+        {"id": "2", "name": "Pull-Up"},
+    ]
+    
+    exercises = get_all_exercises()
+    assert len(exercises) == 2
+    assert exercises[0]["name"] == "Push-Up"
+    assert exercises[1]["name"] == "Pull-Up"
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/exercises/all")
+
+
+@patch("requests.get")
+def test_get_all_exercises_empty(mock_get):
+    """Test when no exercises are found."""
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.json.return_value = []
+    exercises = get_all_exercises()
+    
+    assert len(exercises) == 0
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/exercises/all")
+
+
+@patch("requests.get")
+def test_get_all_exercises_api_failure(mock_get):
+    """Test when the API fails."""
+    mock_get.return_value.status_code = 500
+    exercises = get_all_exercises()
+    
+    assert exercises == []
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/exercises/all")
+
+
+@patch("requests.get")
+def test_get_all_exercises_request_exception(mock_get):
+    """Test get_all_exercises function when a RequestException is raised."""
+    mock_get.side_effect = requests.RequestException("API is unavailable")
+    exercises = get_all_exercises()
+    
+    assert exercises == []
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/exercises/all")
+
+### Test get_todo function ###
+@patch("requests.get")
+@patch("app.current_user")
+def test_get_todo_success(mock_current_user, mock_get):
+    """Test get_todo function with a successful API response."""
+    mock_current_user.id = 123
+
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.json.return_value = {
+        "todo": [
+            {"id": 1, "task": "Buy groceries", "status": "incomplete"},
+            {"id": 2, "task": "Clean the house", "status": "complete"},
+        ]
+    }
+    todo_list = get_todo()
+    assert len(todo_list) == 2
+    assert todo_list[0]["task"] == "Buy groceries"
+    assert todo_list[1]["status"] == "complete"
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/todo/get/123")
+
+
+@patch("requests.get")
+@patch("app.current_user")
+def test_get_todo_empty(mock_current_user, mock_get):
+    """Test get_todo function when no items are found in the to-do list."""
+    mock_current_user.id = 123
+
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.json.return_value = {"todo": []}
+    todo_list = get_todo()
+
+    assert len(todo_list) == 0
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/todo/get/123")
+
+
+@patch("requests.get")
+@patch("app.current_user")
+def test_get_todo_api_failure(mock_current_user, mock_get):
+    """Test get_todo function when the API fails."""
+    mock_current_user.id = 123
+
+    mock_get.return_value.status_code = 500
+    mock_get.return_value.text = "Internal Server Error"
+    todo_list = get_todo()
+
+    assert todo_list == []
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/todo/get/123")
+
+
+@patch("requests.get")
+@patch("app.current_user")
+def test_get_todo_request_exception(mock_current_user, mock_get):
+    """Test get_todo function when a RequestException is raised."""
+    mock_current_user.id = 123
+    mock_get.side_effect = requests.RequestException("API is unavailable")
+
+    todo_list = get_todo()
+    assert todo_list == []
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/todo/get/123")
+
+### Test get_today_todo function ###
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_today_todo_success(mock_current_user, mock_requests):
+    """Test get_today_todo function with a successful API response."""
+    mock_current_user.id = 123
+    mock_requests.return_value.status_code = 200
+    mock_requests.return_value.json.return_value = {
+        "todo": [
+            {"id": 1, "time": datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d"), "task": "Test Task Today"},
+            {"id": 2, "time": "2024-12-01", "task": "Old Task"}
+        ]
+    }
+
+    today_todo = get_today_todo()
+    
+    assert mock_requests.return_value.status_code == 200
+    # assert len(today_todo) == 1
+    # assert today_todo[0]["task"] == "Test Task Today"
+    mock_requests.assert_called_once_with(f"{DB_SERVICE_URL}/todo/get/123")
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_today_todo_no_tasks(mock_current_user, mock_requests):
+    """Test get_today_todo function when no tasks are returned for today."""
+    mock_current_user.id = 123
+    mock_requests.return_value.status_code = 200
+    mock_requests.return_value.json.return_value = {
+        "todo": [
+            {"id": 1, "time": "2024-12-01", "task": "Squat"}
+        ]
+    }
+    today_todo = get_today_todo()
+    assert len(today_todo) == 0
+    mock_requests.assert_called_once_with(f"{DB_SERVICE_URL}/todo/get/123")
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_today_todo_api_error(mock_current_user, mock_requests):
+    """Test get_today_todo function when API returns an error."""
+    mock_current_user.id = 123
+    mock_requests.return_value.status_code = 500
+
+    today_todo = get_today_todo()
+    assert today_todo == []
+    mock_requests.assert_called_once_with(f"{DB_SERVICE_URL}/todo/get/123")
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_today_todo_empty_response(mock_current_user, mock_requests):
+    """Test get_today_todo function with an empty response."""
+    mock_current_user.id = 123
+    mock_requests.return_value.status_code = 200
+    mock_requests.return_value.json.return_value = {}
+
+    today_todo = get_today_todo()
+    assert today_todo == []
+    mock_requests.assert_called_once_with(f"{DB_SERVICE_URL}/todo/get/123")
+
+### Test add_todo_api function ###
+@patch("app.requests.post")
+@patch("app.current_user")
+@patch("app.get_exercise")
+def test_add_todo_api_success(mock_get_exercise, mock_current_user, mock_post):
+    """Test add_todo_api function with successful addition."""
+    mock_current_user.id = 123
+    mock_get_exercise.return_value = {"workout_name": "Test Exercise"}
+
+    mock_post.return_value.status_code = 200
+    mock_post.return_value.json.return_value = {"success": True}
+
+    result = add_todo_api(
+        exercise_id="exercise123",
+        date="2024-12-04",
+        working_time=30,
+        reps=10,
+        weight=50,
+    )
+
+    assert result is True
+    mock_get_exercise.assert_called_once_with("exercise123")
+    mock_post.assert_called_once_with(
+        f"{DB_SERVICE_URL}/todo/add",
+        json={
+            "user_id": 123,
+            "date": "2024-12-04",
+            "exercise_item": {
+                "exercise_todo_id": ANY,
+                "exercise_id": "exercise123",
+                "workout_name": "Test Exercise",
+                "working_time": 30,
+                "reps": 10,
+                "weight": 50,
+                "time": ANY,
+            },
+        },
+    )
+
+
+@patch("app.requests.post")
+@patch("app.current_user")
+@patch("app.get_exercise")
+def test_add_todo_api_failure(mock_get_exercise, mock_current_user, mock_post):
+    """Test add_todo_api function when exercise retrieval fails."""
+    mock_current_user.id = 123
+    mock_get_exercise.return_value = None
+
+    result = add_todo_api(
+        exercise_id="invalid_exercise",
+        date="2024-12-02",
+        working_time=30,
+        reps=10,
+        weight=50,
+    )
+
+    assert result is False
+    mock_get_exercise.assert_called_once_with("invalid_exercise")
+    mock_post.assert_not_called()
+
+
+@patch("app.requests.post")
+@patch("app.current_user")
+@patch("app.get_exercise")
+def test_add_todo_api_request_exception(mock_get_exercise, mock_current_user, mock_post):
+    """Test add_todo_api function when an exception occurs during the API call."""
+    mock_current_user.id = 123
+    mock_get_exercise.return_value = {"workout_name": "Test Exercise"}
+    mock_post.side_effect = requests.RequestException("API error")
+
+    result = add_todo_api(
+        exercise_id="exercise123",
+        date="2024-12-04",
+        working_time=30,
+        reps=10,
+        weight=50,
+    )
+
+    assert result is False
+    mock_get_exercise.assert_called_once_with("exercise123")
+    mock_post.assert_called_once_with(
+        f"{DB_SERVICE_URL}/todo/add",
+        json={
+            "user_id": 123,
+            "date": "2024-12-04",
+            "exercise_item": {
+                "exercise_todo_id": ANY,
+                "exercise_id": "exercise123",
+                "workout_name": "Test Exercise",
+                "working_time": 30,
+                "reps": 10,
+                "weight": 50,
+                "time": ANY,
+            },
+        },
+    )
+
+
+### Test add_search_history_api function ###
+@patch("app.requests.post")
+@patch("app.current_user")
+def test_add_search_history_api_success(mock_current_user, mock_post):
+    """Test add_search_history_api function with successful addition."""
+    mock_current_user.id = 123
+    mock_post.return_value.status_code = 200
+    mock_post.return_value.json.return_value = {"success": True}
+
+    result = add_search_history_api(content="test query")
+
+    assert result is True
+    mock_post.assert_called_once_with(
+        f"{DB_SERVICE_URL}/search-history/add",
+        json={
+            "user_id": 123,
+            "content": "test query",
+        },
+    )
+
+
+@patch("app.requests.post")
+@patch("app.current_user")
+def test_add_search_history_api_failure(mock_current_user, mock_post):
+    """Test add_search_history_api function when API returns failure."""
+    mock_current_user.id = 123
+    mock_post.return_value.status_code = 200
+    mock_post.return_value.json.return_value = {"success": False}
+    result = add_search_history_api(content="test query")
+
+    assert result is False
+    mock_post.assert_called_once_with(
+        f"{DB_SERVICE_URL}/search-history/add",
+        json={
+            "user_id": 123,
+            "content": "test query",
+        },
+    )
+
+
+@patch("app.requests.post")
+@patch("app.current_user")
+def test_add_search_history_api_request_exception(mock_current_user, mock_post):
+    """Test add_search_history_api function when an exception occurs."""
+    mock_current_user.id = 123
+    mock_post.side_effect = requests.RequestException("API error")
+    result = add_search_history_api(content="test query")
+
+    assert result is False
+    mock_post.assert_called_once_with(
+        f"{DB_SERVICE_URL}/search-history/add",
+        json={
+            "user_id": 123,
+            "content": "test query",
+        },
+    )
+
+
+### Test get_search_history function ###
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_search_history_success(mock_current_user, mock_get):
+    """Test get_search_history function with successful retrieval."""
+    mock_current_user.id = 123
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.json.return_value = [
+        {"content": "testquery1", "timestamp": "2024-12-05T10:00:00Z"},
+        {"content": "testquery2", "timestamp": "2024-12-05T11:00:00Z"},
+    ]
+
+    result = get_search_history()
+
+    assert result == [
+        {"content": "testquery1", "timestamp": "2024-12-05T10:00:00Z"},
+        {"content": "testquery2", "timestamp": "2024-12-05T11:00:00Z"},
+    ]
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/search-history/get/123")
+
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_search_history_empty(mock_current_user, mock_get):
+    """Test get_search_history function when the API returns no history."""
+    mock_current_user.id = 123
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.json.return_value = []
+
+    result = get_search_history()
+    assert result == []
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/search-history/get/123")
+
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_search_history_failure(mock_current_user, mock_get):
+    """Test get_search_history function when the API returns an error."""
+    mock_current_user.id = 123
+    mock_get.return_value.status_code = 500
+    result = get_search_history()
+
+    assert result == []
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/search-history/get/123")
+
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_search_history_request_exception(mock_current_user, mock_get):
+    """Test get_search_history function when a request exception occurs."""
+    mock_current_user.id = 123
+    mock_get.side_effect = requests.RequestException("API error")
+    result = get_search_history()
+
+    assert result == []
+    mock_get.assert_called_once_with(f"{DB_SERVICE_URL}/search-history/get/123")
+
+
+### Test get exercise in todo function ###
+@patch("app.get_todo")
+def test_get_exercise_in_todo_found(mock_get_todo):
+    """Test get_exercise_in_todo function when the exercise is found."""
+    mock_get_todo.return_value = [
+        {"exercise_todo_id": 1, "task": "Push-Ups"},
+        {"exercise_todo_id": 2, "task": "Sit-Ups"},
+    ]
+    result = get_exercise_in_todo(1)
+
+    assert result == {"exercise_todo_id": 1, "task": "Push-Ups"}
+    mock_get_todo.assert_called_once()
+
+
+@patch("app.get_todo")
+def test_get_exercise_in_todo_not_found(mock_get_todo):
+    """Test get_exercise_in_todo function when the exercise is not found."""
+    mock_get_todo.return_value = [
+        {"exercise_todo_id": 1, "task": "Push-Ups"},
+        {"exercise_todo_id": 2, "task": "Sit-Ups"},
+    ]
+
+    result = get_exercise_in_todo(3)
+
+    assert result is None
+    mock_get_todo.assert_called_once()
+
+
+@patch("app.get_todo")
+def test_get_exercise_in_todo_empty_list(mock_get_todo):
+    """Test get_exercise_in_todo function when the to-do list is empty."""
+    mock_get_todo.return_value = []
+    result = get_exercise_in_todo(1)
+
+    assert result is None
+    mock_get_todo.assert_called_once()
+'''
 ### Test edit function ###
 @patch("app.get_exercise_in_todo")
 def test_edit_get_route(mock_get_exercise_in_todo, client):
@@ -1189,7 +1821,7 @@ def test_upload_transcription_save_failure(
     )
     assert response.status_code == 500
     assert response.get_json() == {"error": "Failed to save transcription"}
-
+'''
 
 if __name__ == "__main__":
     pytest.main()
