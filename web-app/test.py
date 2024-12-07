@@ -27,6 +27,9 @@ from app import (
     parse_voice_command,
     insert_transcription_entry_api,
     load_user,
+    add_plan,
+    get_workout_data,
+    save_plan,
 )
 import requests
 
@@ -1802,1080 +1805,358 @@ def test_save_profile_update_failure(mock_current_user, mock_update_user_by_id, 
         {"name": "testuser", "sex": "Male"},
     )
 
+### Test generate_weekly_plan function ###
+@patch("app.add_plan")
+@patch("app.requests.post")
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_generate_weekly_plan_success(mock_current_user, mock_requests_get, mock_requests_post, mock_add_plan, client):
+    mock_current_user.id = "123"
+    mock_requests_get.side_effect = [
+        MagicMock(status_code=200, json=MagicMock(return_value={
+            "sex": "Male",
+            "height": 180,
+            "weight": 75,
+            "goal_weight": 70,
+            "fat_rate": 20,
+            "goal_fat_rate": 15,
+        })),
+        MagicMock(status_code=200, json=MagicMock(return_value=[
+            {"workout_name": "Push Ups"},
+            {"workout_name": "Sit Ups"}
+        ])),
+    ]
+    mock_requests_post.return_value = MagicMock(status_code=200, json=MagicMock(return_value={"plan": "sample_plan"}))
+    mock_add_plan.return_value = None
 
-'''
-### Test edit function ###
-@patch("app.get_exercise_in_todo")
-def test_edit_get_route(mock_get_exercise_in_todo, client):
-    """Test edit get route"""
-    # pylint: disable=redefined-outer-name
-    with app.app_context():
-        mock_get_exercise_in_todo.return_value = {
-            "exercise_todo_id": "123",
-            "name": "Test Exercise",
-            "reps": 10,
-            "weight": 50,
-        }
-        # pylint: disable=redefined-outer-name
-        response = client.get("/edit?exercise_todo_id=123")
-        assert response.status_code == 200
-        mock_get_exercise_in_todo.assert_called_once_with("123")
+    response = client.post("/api/generate-weekly-plan")
 
+    assert response.status_code == 200
+    assert response.json == {"success": True, "plan": {"plan": "sample_plan"}}
+    mock_requests_get.assert_any_call(f"{DB_SERVICE_URL}/users/get/123")
+    mock_requests_get.assert_any_call(f"{DB_SERVICE_URL}/exercises/all")
+    mock_requests_post.assert_called_once_with(
+        "http://machine-learning-client:8080/plan",
+        json={
+            "workout": ["Push Ups", "Sit Ups"],
+            "user_id": "123",
+            "sex": "Male",
+            "height": 180,
+            "weight": 75,
+            "goal_weight": 70,
+            "fat_rate": 20,
+            "goal_fat_rate": 15,
+            "additional_note": "",
+        },
+        timeout=10,
+    )
 
-@patch("app.edit_exercise")
-@patch("app.get_exercise_in_todo")
-def test_edit_route(mock_get_exercise_in_todo, mock_edit_exercise, client):
-    """Test edit route"""
-    # pylint: disable=redefined-outer-name
-    with app.app_context():
-        mock_get_exercise_in_todo.return_value = {
-            "exercise_todo_id": "123",
-            "name": "Test Exercise",
-            "reps": "10",
-            "weight": "50",
-        }
-
-        mock_edit_exercise.return_value = True
-        # post request successful
-        response = client.post(
-            "/edit?exercise_todo_id=123",
-            data={"working_time": "30", "weight": "70", "reps": "15"},
-        )
-
-        assert response.status_code == 200
-        assert b"Edited successfully" in response.data
-        mock_edit_exercise.assert_called_once_with("123", "30", "70", "15")
-
-        # post request fail
-        mock_edit_exercise.reset_mock()
-        mock_edit_exercise.return_value = False
-
-        response = client.post(
-            "/edit?exercise_todo_id=123",
-            data={"working_time": "30", "weight": "70", "reps": "15"},
-        )
-
-        assert response.status_code == 400
-        assert b"Failed to edit" in response.data
-        mock_edit_exercise.assert_called_once_with("123", "30", "70", "15")
+    actual_call_args = mock_add_plan.call_args[0]
+    assert actual_call_args[0].date() == datetime.now().date()
+    assert actual_call_args[1] == {"plan": "sample_plan"}
 
 
-@patch("app.edit_transcription_collection")
-def test_insert_transcription_entry(mock_edit_transcription_collection):
-    """Test insert_transcription_entry function"""
-    mock_result = MagicMock()
-    mock_result.inserted_id = "mock_id"
-    mock_edit_transcription_collection.insert_one.return_value = mock_result
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_generate_weekly_plan_user_not_found(mock_current_user, mock_requests_get, client):
+    """Test generating a weekly plan when the user is not found."""
+    mock_current_user.id = "123"
+    mock_requests_get.return_value = MagicMock(status_code=404)
+    response = client.post("/api/generate-weekly-plan")
 
-    user_id = "test_user"
-    content = "Test transcription content"
-    inserted_id = insert_transcription_entry(user_id, content)
-
-    assert inserted_id == "mock_id"
-
-    mock_edit_transcription_collection.insert_one.assert_called_once()
-    call_args = mock_edit_transcription_collection.insert_one.call_args[0][0]
-    assert call_args["user_id"] == user_id
-    assert call_args["content"] == content
-    assert isinstance(call_args["time"], datetime)
-
-    mock_edit_transcription_collection.insert_one.return_value.inserted_id = None
-    failed_inserted_id = insert_transcription_entry(user_id, content)
-    assert failed_inserted_id is None
-
-
-### Test search function ###
-@patch("app.search_exercise")
-@patch("app.add_search_history")
-@patch("app.get_matching_exercises_from_history")
-def test_search_route(mock_get_history, mock_add_history, mock_search_exercise, client):
-    """Test search route"""
-    # pylint: disable=redefined-outer-name
-    with app.app_context():
-        mock_get_history.return_value = [
-            {"_id": "1", "name": "Push Up"},
-            {"_id": "2", "name": "Squats"},
-        ]
-        response = client.get("/search")
-
-        # valid check
-        mock_search_exercise.return_value = [{"_id": "1", "name": "Push Up"}]
-        response = client.post("/search", data={"query": "push"})
-
-        # redirect check
-        assert response.status_code == 302
-        mock_search_exercise.assert_called_once_with("push")
-        mock_add_history.assert_called_once_with("push")
-
-        # empty search query
-        response = client.post("/search", data={"query": ""})
-        assert response.status_code == 400
-        assert b"Search content cannot be empty." in response.data
-
-        # non-existent search query
-        mock_search_exercise.reset_mock()
-        mock_search_exercise.return_value = []
-        # pylint: disable=redefined-outer-name
-        response = client.post("/search", data={"query": "nonexistent"})
-
-        # fail search
-        assert response.status_code == 404
-        assert b"Exercise was not found." in response.data
-        mock_search_exercise.assert_called_once_with("nonexistent")
-
-
-### Test add function ###
-@patch("app.add_todo")
-def test_add_exercise_route(mock_add_todo, client):
-    """Test add exercise route"""
-    # pylint: disable=redefined-outer-name
-    with app.app_context():
-        # add successful
-        mock_add_todo.return_value = True
-        response = client.post("/add_exercise?exercise_id=123")
-        assert response.status_code == 200
-        assert b"Added successfully" in response.data
-        mock_add_todo.assert_called_once_with("123")
-
-        # miss exercise id to add
-        mock_add_todo.reset_mock()
-        # pylint: disable=redefined-outer-name
-        response = client.post("/add_exercise")
-        assert response.status_code == 400
-        assert b"Exercise ID is required" in response.data
-        mock_add_todo.assert_not_called()
-
-        # add exercise fail
-        mock_add_todo.reset_mock()
-        mock_add_todo.return_value = False
-        # pylint: disable=redefined-outer-name
-        response = client.post("/add_exercise?exercise_id=456")
-
-        # add exercise fail
-        assert response.status_code == 400
-        assert b"Failed to add" in response.data
-        mock_add_todo.assert_called_once_with("456")
-
-
-def test_add_route_with_results_in_session(client):
-    """Test add route with results"""
-    # pylint: disable=redefined-outer-name
-    with app.app_context():
-        with client.session_transaction() as session:
-            session["results"] = [
-                {"_id": "1", "name": "Push Up"},
-                {"_id": "2", "name": "Squats"},
-            ]
-        response = client.get("/add")
-        assert response.status_code == 200
-        assert b"exercise_id=1" in response.data
-        assert b"exercise_id=2" in response.data
-        assert b"const exercisesLength = 2" in response.data
-
-
-def test_add_route_empty_session(client):
-    """Test add route with empty session"""
-    # pylint: disable=redefined-outer-name
-    with app.app_context():
-        with client.session_transaction() as session:
-            session.pop("results", None)
-        response = client.get("/add")
-
-        assert response.status_code == 200
-        assert b"const exercisesLength = 0" in response.data
-
-
-### Test delete route ###
-@patch("app.get_todo")
-def test_delete_exercise_route(mock_get_todo, client):
-    """Test delete exercise route"""
-    # pylint: disable=redefined-outer-name
-    with app.app_context():
-        mock_get_todo.return_value = [
-            {"_id": "1", "name": "Push Up"},
-            {"_id": "2", "name": "Squats"},
-        ]
-        response = client.get("/delete_exercise")
-        assert response.status_code == 200
-        assert b"exercise-" in response.data
-        mock_get_todo.assert_called_once()
-
-
-### Test delete exercise id function ###
-@patch("app.delete_todo")
-def test_delete_exercise_id_success(mock_delete_todo, client):
-    """Test delete exercise id"""
-    # pylint: disable=redefined-outer-name
-    mock_delete_todo.return_value = True
-
-    response = client.delete("/delete_exercise/123")
-
-    assert response.status_code == 204
-    assert response.data == b""
-    mock_delete_todo.assert_called_once_with(123)
-
-
-@patch("app.delete_todo")
-def test_delete_exercise_id_failure(mock_delete_todo, client):
-    """Test delete exercise id fail"""
-    # pylint: disable=redefined-outer-name
-    mock_delete_todo.return_value = False
-
-    response = client.delete("/delete_exercise/456")
     assert response.status_code == 404
-    assert b"Failed to delete" in response.data
-    mock_delete_todo.assert_called_once_with(456)
+    assert response.json == {"success": False, "message": "User not found"}
+    mock_requests_get.assert_called_once_with(f"{DB_SERVICE_URL}/users/get/123")
 
 
-### Test search_exercise function ###
-@patch("app.exercises_collection")
-@patch("app.normalize_text")
-def test_search_exercise(mock_normalize_text, mock_exercises_collection):
-    """Test search exercise."""
-    mock_normalize_text.return_value = "up"
-    mock_exercises_collection.find.return_value = [
-        {"workout_name": "Push Up"},
-        {"workout_name": "Pull Up"},
-        {"workout_name": "Sit Up"},
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_generate_weekly_plan_exercises_failure(mock_current_user, mock_requests_get, client):
+    """Test generating a weekly plan when the exercises API call fails."""
+    mock_current_user.id = "123"
+    mock_requests_get.side_effect = [
+        MagicMock(status_code=200, json=MagicMock(return_value={
+            "sex": "Male",
+            "height": 180,
+            "weight": 75,
+            "goal_weight": 70,
+            "fat_rate": 20,
+            "goal_fat_rate": 15,
+        })),
+        MagicMock(status_code=500),
     ]
-
-    query = "Up"
-    result = search_exercise(query)
-
-    assert result == [
-        {"workout_name": "Push Up"},
-        {"workout_name": "Pull Up"},
-        {"workout_name": "Sit Up"},
-    ]
-
-    mock_normalize_text.assert_called_once_with(query)
-    # pylint: disable=R0801
-    mock_exercises_collection.find.assert_called_once_with(
-        {
-            "$expr": {
-                "$regexMatch": {
-                    "input": {
-                        "$replaceAll": {
-                            "input": {
-                                "$replaceAll": {
-                                    "input": "$workout_name",
-                                    "find": "-",
-                                    "replacement": "",
-                                }
-                            },
-                            "find": " ",
-                            "replacement": "",
-                        }
-                    },
-                    "regex": "up",
-                    "options": "i",
-                }
-            }
-        }
-    )
-
-
-### Test search_exercise_rigid function ###
-@patch("app.exercises_collection")
-@patch("app.normalize_text")
-def test_search_exercise_rigid(mock_normalize_text, mock_exercises_collection):
-    """Test search exercise rigid."""
-    mock_normalize_text.return_value = "pushup"
-    mock_exercises_collection.find.return_value = [
-        {"workout_name": "Push Up"},
-        {"workout_name": "PUSH-UP"},
-        {"workout_name": "pushup"},
-    ]
-
-    result = search_exercise_rigid("Push Up")
-    assert result == [
-        {"workout_name": "Push Up"},
-        {"workout_name": "PUSH-UP"},
-        {"workout_name": "pushup"},
-    ]
-
-    mock_normalize_text.assert_called_once_with("Push Up")
-    # pylint: disable=R0801
-    mock_exercises_collection.find.assert_called_once_with(
-        {
-            "$expr": {
-                "$eq": [
-                    {
-                        "$toLower": {
-                            "$replaceAll": {
-                                "input": {
-                                    "$replaceAll": {
-                                        "input": "$workout_name",
-                                        "find": "-",
-                                        "replacement": "",
-                                    }
-                                },
-                                "find": " ",
-                                "replacement": "",
-                            }
-                        }
-                    },
-                    "pushup",
-                ]
-            }
-        }
-    )
-
-
-### Test get_exercise function ###
-@patch("app.exercises_collection")
-def test_get_exercise(mock_exercises_collection):
-    """Test get exercise"""
-    random_object_id = ObjectId()
-    mock_exercise = {"_id": random_object_id, "workout_name": "Push Up"}
-    mock_exercises_collection.find_one.return_value = mock_exercise
-
-    exercise_id = str(random_object_id)
-    result = get_exercise(exercise_id)
-
-    assert result == mock_exercise
-    mock_exercises_collection.find_one.assert_called_once_with(
-        {"_id": ObjectId(exercise_id)}
-    )
-
-
-### Test get_todo function ###
-@patch("app.current_user")
-@patch("app.todo_collection")
-def test_get_todo_with_todo_list(mock_todo_collection, mock_current_user):
-    """Test get todo from the todo list"""
-    mock_current_user.id = "user123"
-
-    mock_todo_list = {"user_id": "user123", "todo": ["task1", "task2", "task3"]}
-    mock_todo_collection.find_one.return_value = mock_todo_list
-
-    result = get_todo()
-
-    assert result == ["task1", "task2", "task3"]
-    mock_todo_collection.find_one.assert_called_once_with({"user_id": "user123"})
-
-
-@patch("app.current_user")
-@patch("app.todo_collection")
-def test_get_todo_without_todo_list(mock_todo_collection, mock_current_user):
-    """Test get todo without todo list"""
-    mock_current_user.id = "user123"
-    mock_todo_collection.find_one.return_value = None
-    result = get_todo()
-    assert result == []
-    mock_todo_collection.find_one.assert_called_once_with({"user_id": "user123"})
-
-
-@patch("app.current_user")
-@patch("app.todo_collection")
-def test_get_todo_with_empty_todo_list(mock_todo_collection, mock_current_user):
-    """Test get todo with empty todo list"""
-    mock_current_user.id = "user123"
-
-    mock_todo_list = {"user_id": "user123"}
-    mock_todo_collection.find_one.return_value = mock_todo_list
-
-    result = get_todo()
-
-    assert result == []
-    mock_todo_collection.find_one.assert_called_once_with({"user_id": "user123"})
-
-
-### Test delete_todo function ###
-@patch("app.current_user")
-@patch("app.todo_collection")
-def test_delete_todo_success(mock_todo_collection, mock_current_user):
-    """Test delete todo successful"""
-    mock_current_user.id = "user123"
-
-    mock_result = MagicMock()
-    mock_result.modified_count = 1
-    mock_todo_collection.update_one.return_value = mock_result
-
-    exercise_todo_id = ObjectId()
-    result = delete_todo(exercise_todo_id)
-
-    assert result is True
-    mock_todo_collection.update_one.assert_called_once_with(
-        {"user_id": mock_current_user.id},
-        {"$pull": {"todo": {"exercise_todo_id": exercise_todo_id}}},
-    )
-
-
-@patch("app.current_user")
-@patch("app.todo_collection")
-def test_delete_todo_failure(mock_todo_collection, mock_current_user):
-    """Test delete todo fail"""
-    mock_current_user.id = "user123"
-
-    mock_result = MagicMock()
-    mock_result.modified_count = 0
-    mock_todo_collection.update_one.return_value = mock_result
-
-    exercise_todo_id = ObjectId()
-    result = delete_todo(exercise_todo_id)
-
-    assert result is False
-    mock_todo_collection.update_one.assert_called_once_with(
-        {"user_id": mock_current_user.id},
-        {"$pull": {"todo": {"exercise_todo_id": exercise_todo_id}}},
-    )
-
-
-### Test add_todo function ###
-@patch("app.current_user")
-@patch("app.exercises_collection")
-@patch("app.todo_collection")
-def test_add_todo_success(
-    mock_todo_collection, mock_exercises_collection, mock_current_user
-):
-    """Test add todo successful"""
-    mock_current_user.id = "user123"
-
-    random_object_id = ObjectId()
-    mock_exercise = {"_id": random_object_id, "workout_name": "Push Up"}
-    mock_exercises_collection.find_one.return_value = mock_exercise
-
-    mock_todo = {"user_id": "user123", "todo": [{"exercise_todo_id": 1000}]}
-    mock_todo_collection.find_one.return_value = mock_todo
-
-    mock_result = MagicMock()
-    mock_result.modified_count = 1
-    mock_todo_collection.update_one.return_value = mock_result
-
-    result = add_todo(str(random_object_id))
-
-    assert result is True
-    mock_todo_collection.update_one.assert_called_once_with(
-        {"user_id": "user123"},
-        {
-            "$push": {
-                "todo": {
-                    "exercise_todo_id": 1001,
-                    "exercise_id": mock_exercise["_id"],
-                    "workout_name": mock_exercise["workout_name"],
-                    "working_time": None,
-                    "reps": None,
-                    "weight": None,
-                }
-            }
-        },
-    )
-
-
-@patch("app.current_user")
-@patch("app.exercises_collection")
-@patch("app.todo_collection")
-def test_add_todo_failure(
-    mock_todo_collection, mock_exercises_collection, mock_current_user
-):
-    """Test add todo fail"""
-    mock_current_user.id = "user123"
-
-    mock_exercises_collection.find_one.return_value = None
-
-    random_object_id = ObjectId()
-    result = add_todo(str(random_object_id))
-
-    assert result is False
-    mock_exercises_collection.find_one.assert_called_once_with(
-        {"_id": random_object_id}
-    )
-    mock_todo_collection.update_one.assert_not_called()
-    mock_todo_collection.insert_one.assert_not_called()
-
-
-@patch("app.current_user")
-@patch("app.todo_collection")
-def test_edit_exercise_success(mock_todo_collection, mock_current_user):
-    """Test edit exercise successful"""
-    mock_current_user.id = "user123"
-
-    mock_result = MagicMock()
-    mock_result.matched_count = 1
-    mock_todo_collection.update_one.return_value = mock_result
-
-    exercise_todo_id = 1001
-    working_time = 30
-    weight = 50
-    reps = 10
-    result = edit_exercise(exercise_todo_id, working_time, weight, reps)
-
-    assert result is True
-    mock_todo_collection.update_one.assert_called_once_with(
-        {"user_id": "user123", "todo.exercise_todo_id": exercise_todo_id},
-        {
-            "$set": {
-                "todo.$.working_time": working_time,
-                "todo.$.weight": weight,
-                "todo.$.reps": reps,
-            }
-        },
-    )
-
-
-@patch("app.current_user")
-@patch("app.todo_collection")
-def test_edit_exercise_no_fields_to_update(mock_todo_collection, mock_current_user):
-    """Test edit exercise with no update"""
-    mock_current_user.id = "user123"
-
-    exercise_todo_id = 1001
-    working_time = None
-    weight = None
-    reps = None
-    result = edit_exercise(exercise_todo_id, working_time, weight, reps)
-
-    assert result is False
-    mock_todo_collection.update_one.assert_not_called()
-
-
-@patch("app.current_user")
-@patch("app.todo_collection")
-def test_edit_exercise_not_found(mock_todo_collection, mock_current_user):
-    """Test edit exercise with no result found"""
-    mock_current_user.id = "user123"
-
-    mock_result = MagicMock()
-    mock_result.matched_count = 0
-    mock_todo_collection.update_one.return_value = mock_result
-
-    exercise_todo_id = 1001
-    working_time = 20
-    weight = 60
-    reps = 5
-    result = edit_exercise(exercise_todo_id, working_time, weight, reps)
-
-    assert result is False
-    mock_todo_collection.update_one.assert_called_once_with(
-        {"user_id": mock_current_user.id, "todo.exercise_todo_id": exercise_todo_id},
-        {
-            "$set": {
-                "todo.$.working_time": working_time,
-                "todo.$.weight": weight,
-                "todo.$.reps": reps,
-            }
-        },
-    )
-
-
-### Test get_exercise_in_todo function ###
-@patch("app.current_user")
-@patch("app.todo_collection")
-def test_get_exercise_in_todo_found(mock_todo_collection, mock_current_user):
-    """Test get exercise in todo"""
-    mock_current_user.id = "user123"
-
-    random_exercise_id_1 = ObjectId()
-    random_exercise_id_2 = ObjectId()
-
-    mock_todo_item = {
-        "user_id": "user123",
-        "todo": [
-            {
-                "exercise_todo_id": 1001,
-                "exercise_id": random_exercise_id_1,
-                "workout_name": "Push Up",
-            },
-            {
-                "exercise_todo_id": 1002,
-                "exercise_id": random_exercise_id_2,
-                "workout_name": "Pull Up",
-            },
-        ],
-    }
-    mock_todo_collection.find_one.return_value = mock_todo_item
-
-    exercise_todo_id = 1001
-    result = get_exercise_in_todo(exercise_todo_id)
-
-    assert result == {
-        "exercise_todo_id": 1001,
-        "exercise_id": random_exercise_id_1,
-        "workout_name": "Push Up",
-    }
-    mock_todo_collection.find_one.assert_called_once_with(
-        {"user_id": mock_current_user.id}
-    )
-
-
-@patch("app.current_user")
-@patch("app.todo_collection")
-def test_get_exercise_in_todo_not_found(mock_todo_collection, mock_current_user):
-    """Test get exercise in todo with no results found"""
-    mock_current_user.id = "user123"
-
-    random_exercise_id_1 = ObjectId()
-    mock_todo_item = {
-        "user_id": "user123",
-        "todo": [
-            {
-                "exercise_todo_id": 1002,
-                "exercise_id": random_exercise_id_1,
-                "workout_name": "Pull Up",
-            }
-        ],
-    }
-    mock_todo_collection.find_one.return_value = mock_todo_item
-
-    exercise_todo_id = 1001
-    result = get_exercise_in_todo(exercise_todo_id)
-
-    assert result is None
-    mock_todo_collection.find_one.assert_called_once_with(
-        {"user_id": mock_current_user.id}
-    )
-
-
-@patch("app.current_user")
-@patch("app.todo_collection")
-def test_get_exercise_in_todo_no_todo_item(mock_todo_collection, mock_current_user):
-    """Test get exercise in todo with no todo item"""
-    mock_current_user.id = "user123"
-
-    mock_todo_collection.find_one.return_value = None
-
-    exercise_todo_id = 1001
-    result = get_exercise_in_todo(exercise_todo_id)
-
-    assert result is None
-    mock_todo_collection.find_one.assert_called_once_with(
-        {"user_id": mock_current_user.id}
-    )
-
-
-### Test get_instruction function ###
-@patch("app.exercises_collection")
-def test_get_instruction_with_instruction(mock_exercises_collection):
-    """Test get instructions with instruction"""
-    random_exercise_id = ObjectId("507f1f77bcf86cd799439011")
-    mock_exercise = {
-        "_id": random_exercise_id,
-        "workout_name": "Push Up",
-        "instruction": "Slowly lower your body to the ground, then push back up.",
-    }
-    mock_exercises_collection.find_one.return_value = mock_exercise
-
-    exercise_id = str(random_exercise_id)
-    result = get_instruction(exercise_id)
-
-    assert result == {
-        "workout_name": "Push Up",
-        "instruction": "Slowly lower your body to the ground, then push back up.",
-    }
-    mock_exercises_collection.find_one.assert_called_once_with(
-        {"_id": ObjectId(exercise_id)}, {"instruction": 1, "workout_name": 1}
-    )
-
-
-@patch("app.exercises_collection")
-def test_get_instruction_without_instruction(mock_exercises_collection):
-    """Test get instruction without instruction"""
-    random_exercise_id = ObjectId("507f1f77bcf86cd799439011")
-    mock_exercise = {"_id": random_exercise_id, "workout_name": "Push Up"}
-    mock_exercises_collection.find_one.return_value = mock_exercise
-
-    exercise_id = str(random_exercise_id)
-    result = get_instruction(exercise_id)
-
-    assert result == {
-        "workout_name": "Push Up",
-        "instruction": "No instructions for this exercise.",
-    }
-    mock_exercises_collection.find_one.assert_called_once_with(
-        {"_id": ObjectId(exercise_id)}, {"instruction": 1, "workout_name": 1}
-    )
-
-
-@patch("app.exercises_collection")
-def test_get_instruction_not_found(mock_exercises_collection):
-    """Test get instruction with no result found"""
-    mock_exercises_collection.find_one.return_value = None
-    random_exercise_id = ObjectId("507f1f77bcf86cd799439011")
-
-    exercise_id = str(random_exercise_id)
-    result = get_instruction(exercise_id)
-
-    assert result == {"error": f"Exercise with ID {exercise_id} not found."}
-    mock_exercises_collection.find_one.assert_called_once_with(
-        {"_id": ObjectId(exercise_id)}, {"instruction": 1, "workout_name": 1}
-    )
-
-
-### Test get_matching_exercises_from_history function ###
-@patch("app.get_search_history")
-@patch("app.search_exercise_rigid")
-def test_get_matching_exercises_from_history_empty_history(
-    mock_search_exercise_rigid, mock_get_search_history
-):
-    """Test get matching exercise from history"""
-    mock_get_search_history.return_value = []
-    result = get_matching_exercises_from_history()
-    assert not result, "Expected an empty list when search history is empty"
-    mock_search_exercise_rigid.assert_not_called()  # search_exercise_rigid should not be called
-
-
-@patch(
-    "app.get_search_history",
-)
-@patch("app.search_exercise_rigid")
-def test_get_matching_exercises_from_history_with_matches(
-    mock_search_exercise_rigid, mock_get_search_history
-):
-    """Test get matching exercise from history"""
-    mock_get_search_history.return_value = [
-        {"content": "exercise1"},
-        {"content": "exercise2"},
-    ]
-    # search_exercise_rigid to return specific results for each content name
-    mock_search_exercise_rigid.side_effect = lambda name: [{"name": f"matching_{name}"}]
-    result = get_matching_exercises_from_history()
-
-    expected_result = [{"name": "matching_exercise1"}, {"name": "matching_exercise2"}]
-    assert (
-        result == expected_result
-    ), "Expected list of matching exercises based on search history content"
-    mock_search_exercise_rigid.assert_any_call("exercise1")
-    mock_search_exercise_rigid.assert_any_call("exercise2")
-
-
-@patch("app.get_search_history")
-@patch("app.search_exercise_rigid")
-def test_get_matching_exercises_from_history_with_partial_matches(
-    mock_search_exercise_rigid, mock_get_search_history
-):
-    """Test get matching exercise from history with partial match"""
-    mock_get_search_history.return_value = [
-        {"content": "exercise1"},
-        {"content": "exercise2"},
-    ]
-    # Mock search_exercise_rigid to return an empty list
-    mock_search_exercise_rigid.side_effect = lambda name: (
-        [{"name": "matching_exercise1"}] if name == "exercise1" else []
-    )
-    result = get_matching_exercises_from_history()
-
-    expected_result = [{"name": "matching_exercise1"}]
-    assert (
-        result == expected_result
-    ), "Expected list with only matching exercises where results were found"
-    mock_search_exercise_rigid.assert_any_call("exercise1")
-    mock_search_exercise_rigid.assert_any_call("exercise2")
-
-
-
-
-
-### Test login page function ###
-def test_login_page(client):
-    """Test login page"""
-    # pylint: disable=redefined-outer-name
-    response = client.get("/login")
-    assert response.status_code == 200
-    assert b"Login" in response.data
-
-
-# sign up page
-def test_signup_page(client):
-    """Test signup page"""
-    # pylint: disable=redefined-outer-name
-    response = client.get("/register")
-    assert response.status_code == 200
-    assert b"Sign Up" in response.data
-
-
-### Test login function ###
-@patch("app.users_collection.find_one")
-@patch("app.check_password_hash")
-@patch("app.login_user")
-def test_login_success(
-    mock_login_user, mock_check_password_hash, mock_find_one, client
-):
-    """Test login successful"""
-    # pylint: disable=redefined-outer-name
-    mock_find_one.return_value = {
-        "_id": "mock_user_id",
-        "username": "testuser",
-        "password": "hashed_password",
-    }
-    mock_check_password_hash.return_value = True
-    response = client.post(
-        "/login", data={"username": "testuser", "password": "testpassword"}
-    )
-
-    assert response.status_code == 200
-    assert response.json == {"message": "Login successful!", "success": True}
-    mock_login_user.assert_called_once()
-
-
-# Invalid username
-@patch("app.users_collection.find_one")
-def test_login_invalid_username(mock_find_one, client):
-    """Test login with invalid username"""
-    # pylint: disable=redefined-outer-name
-    # user not found in the database
-    mock_find_one.return_value = None
-    response = client.post(
-        "/login", data={"username": "unknownuser", "password": "testpassword"}
-    )
-
-    assert response.status_code == 401
-    assert response.json == {
-        "message": "Invalid username or password!",
-        "success": False,
-    }
-
-
-# Invalid password
-@patch("app.users_collection.find_one")
-@patch("app.check_password_hash")
-def test_login_invalid_password(mock_check_password_hash, mock_find_one, client):
-    """Test login with invalid password"""
-    # pylint: disable=redefined-outer-name
-    mock_find_one.return_value = {
-        "_id": "mock_user_id",
-        "username": "testuser",
-        "password": "hashed_password",
-    }
-    mock_check_password_hash.return_value = False
-
-    response = client.post(
-        "/login", data={"username": "testuser", "password": "wrongpassword"}
-    )
-
-    assert response.status_code == 401
-    assert response.json == {
-        "message": "Invalid username or password!",
-        "success": False,
-    }
-
-
-@patch("app.current_user")
-@patch("app.search_history_collection")
-def test_add_search_history(mock_search_history_collection, mock_current_user):
-    """Test adding search history."""
-    mock_current_user.id = "user123"
-
-    content = "Test Search Content"
-    add_search_history(content)
-    mock_search_history_collection.insert_one.assert_called_once()
-
-    inserted_entry = mock_search_history_collection.insert_one.call_args[0][0]
-
-    assert inserted_entry["user_id"] == "user123"
-    assert inserted_entry["content"] == content
-    assert isinstance(inserted_entry["time"], datetime)
-
-
-@patch("app.current_user")
-@patch("app.search_history_collection")
-def test_get_search_history(mock_search_history_collection, mock_current_user):
-    """Test getting search history"""
-    mock_current_user.id = "user123"
-    mock_results = [
-        {
-            "user_id": "user123",
-            "content": "Test Content 1",
-            "time": datetime(2024, 11, 12, 12, 0, 0),
-        },
-        {
-            "user_id": "user123",
-            "content": "Test Content 2",
-            "time": datetime(2024, 11, 12, 11, 0, 0),
-        },
-    ]
-    mock_search_history_collection.find.return_value.sort.return_value = mock_results
-
-    history = get_search_history()
-
-    assert len(history) == 2
-    assert history[0]["content"] == "Test Content 1"
-    assert history[1]["content"] == "Test Content 2"
-    mock_search_history_collection.find.assert_called_once_with(
-        {"user_id": "user123"}, {"_id": 0, "user_id": 1, "content": 1, "time": 1}
-    )
-
-
-@patch("app.get_exercise")
-def test_instructions_route(mock_get_exercise, client):
-    # pylint: disable=redefined-outer-name
-    """Test instruction route."""
-    mock_exercise = {
-        "_id": "exercise123",
-        "workout_name": "Push Up",
-        "description": "A great upper body workout.",
-        "instruction": "Make sure to keep your back straight while performing this exercise.",
-    }
-    mock_get_exercise.return_value = mock_exercise
-
-    response = client.get("/instructions?exercise_id=exercise123")
-
-    assert response.status_code == 200
-
-    assert b"A great upper body workout." in response.data
-    assert (
-        b"Make sure to keep your back straight while performing this exercise."
-        in response.data
-    )
-
-
-### Test upload_audio function ###
-@patch("app.call_speech_to_text_service")
-def test_upload_audio_conversion_error(mock_transcribe, client):
-    # pylint: disable=redefined-outer-name
-    """Test audio upload with conversion error."""
-    mock_transcribe.return_value = "Mocked transcription"
-    dummy_audio_path = "/tmp/test_audio.mp3"
-    with open(dummy_audio_path, "wb") as f:
-        f.write(b"dummy audio data")
-
-    with open(dummy_audio_path, "rb") as audio_file:
-        data = {"audio": (audio_file, "test_audio.mp3")}
-        response = client.post(
-            "/upload-audio", data=data, content_type="multipart/form-data"
-        )
+    response = client.post("/api/generate-weekly-plan")
 
     assert response.status_code == 500
+    assert response.json == {"success": False, "message": "Failed to retrieve exercises"}
+    mock_requests_get.assert_any_call(f"{DB_SERVICE_URL}/users/get/123")
+    mock_requests_get.assert_any_call(f"{DB_SERVICE_URL}/exercises/all")
 
 
-def test_upload_audio_no_file(client):
-    # pylint: disable=redefined-outer-name
-    """Test audio upload with no file."""
-    response = client.post("/upload-audio", data={}, content_type="multipart/form-data")
-    assert response.status_code == 400
-    assert response.json["error"] == "No audio file uploaded"
-
-
-@patch("subprocess.run")
-def test_upload_audio_success(mock_subprocess, client):
-    # pylint: disable=redefined-outer-name
-    """Test successful audio upload with mocked transcription."""
-    mock_subprocess.run.side_effect = subprocess.CalledProcessError(1, "ffmpeg")
-    test_audio_path = "/tmp/test_audio.mp3"
-    with open(test_audio_path, "wb") as f:
-        f.write(b"dummy audio data")
-
-    with open(test_audio_path, "rb") as audio_file:
-        data = {"audio": (audio_file, "test_audio.mp3")}
-        response = client.post(
-            "/upload-audio", data=data, content_type="multipart/form-data"
-        )
-
-    assert response.status_code == 200
-
-
-def test_upload_audio_transcription_error(client):
-    # pylint: disable=redefined-outer-name
-    """Test when transcription fails."""
-    dummy_audio_path = "/tmp/test_audio.mp3"
-    with open(dummy_audio_path, "wb") as f:
-        f.write(b"dummy audio data")
-
-    with open(dummy_audio_path, "rb") as audio_file:
-        data = {"audio": (audio_file, "test_audio.mp3")}
-        response = client.post(
-            "/upload-audio", data=data, content_type="multipart/form-data"
-        )
-
-    assert response.status_code == 500, "Expected server error for failed transcription"
-
-
-
-
-
-### Test upload_transcription function ###
-@patch("app.insert_transcription_entry")
+@patch("app.requests.post")
+@patch("app.requests.get")
 @patch("app.current_user")
-def test_upload_transcription_success(
-    mock_current_user, mock_insert_transcription_entry, client
-):
-    """Test successful transcription upload."""
-    # pylint: disable=redefined-outer-name
-    mock_current_user.is_authenticated = True
-    mock_current_user.id = "507f1f77bcf86cd799439011"
-    mock_insert_transcription_entry.return_value = "507f1f77bcf86cd799439012"
+def test_generate_weekly_plan_ml_failure(mock_current_user, mock_requests_get, mock_requests_post, client):
+    """Test generating a weekly plan when the ML API call fails."""
+    mock_current_user.id = "123"
+    mock_requests_get.side_effect = [
+        MagicMock(status_code=200, json=MagicMock(return_value={
+            "sex": "Male",
+            "height": 180,
+            "weight": 75,
+            "goal_weight": 70,
+            "fat_rate": 20,
+            "goal_fat_rate": 15,
+        })),
+        MagicMock(status_code=200, json=MagicMock(return_value=[
+            {"workout_name": "Push Ups"},
+            {"workout_name": "Sit Ups"}
+        ])),
+    ]
+    mock_requests_post.return_value = MagicMock(status_code=500)
+    response = client.post("/api/generate-weekly-plan")
 
-    load = {"content": "This is a transcription test."}
-    response = client.post(
-        "/upload-transcription",
-        data=json.dumps(load),
-        content_type="application/json",
-    )
-
-    assert response.status_code == 200
-    response_data = response.get_json()
-    assert response_data == {
-        "message": "Transcription saved successfully!",
-        "id": "507f1f77bcf86cd799439012",
-    }
-    mock_insert_transcription_entry.assert_called_once_with(
-        "507f1f77bcf86cd799439011", "This is a transcription test."
-    )
-
-
-def test_upload_transcription_invalid_content_type(client):
-    """Test invalid content type."""
-    # pylint: disable=redefined-outer-name
-    response = client.post(
-        "/upload-transcription",
-        data="This is not JSON",
-        content_type="text/plain",
-    )
-    assert response.status_code == 400
-    assert response.get_json() == {"error": "Invalid content type. JSON expected"}
-
-
-def test_upload_transcription_missing_content(client):
-    """Test missing transcription content."""
-    # pylint: disable=redefined-outer-name
-    load = {}
-    response = client.post(
-        "/upload-transcription",
-        data=json.dumps(load),
-        content_type="application/json",
-    )
-
-    assert response.status_code == 400
-    assert response.get_json() == {"error": "Content is required"}
-
-
-@patch("app.current_user")
-def test_upload_transcription_unauthenticated(mock_current_user, client):
-    """Test unauthenticated user attempting to save transcription."""
-    # pylint: disable=redefined-outer-name
-    mock_current_user.is_authenticated = False
-    load = {"content": "This is a transcription test."}
-    response = client.post(
-        "/upload-transcription",
-        data=json.dumps(load),
-        content_type="application/json",
-    )
-
-    assert response.status_code == 401
-    assert response.get_json() == {
-        "error": "User must be logged in to save transcription"
-    }
-
-
-@patch("app.insert_transcription_entry")
-@patch("app.current_user")
-def test_upload_transcription_save_failure(
-    mock_current_user, mock_transcription_entry, client
-):
-    """Test transcription save fail."""
-    # pylint: disable=redefined-outer-name
-    mock_current_user.is_authenticated = True
-    mock_current_user.id = "507f1f77bcf86cd799439011"
-    mock_transcription_entry.return_value = None
-    load = {"content": "This is a transcription test."}
-    response = client.post(
-        "/upload-transcription",
-        data=json.dumps(load),
-        content_type="application/json",
-    )
     assert response.status_code == 500
-    assert response.get_json() == {"error": "Failed to save transcription"}
-'''
+    assert response.json == {"success": False, "message": "Failed to generate plan"}
+    mock_requests_get.assert_any_call(f"{DB_SERVICE_URL}/users/get/123")
+    mock_requests_post.assert_called_once()
+
+
+@patch("app.requests.post")
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_generate_weekly_plan_request_exception(mock_current_user, mock_requests_get, mock_requests_post, client):
+    """Test generating a weekly plan when a request exception occurs."""
+    mock_current_user.id = "123"
+    mock_requests_get.side_effect = [
+        MagicMock(status_code=200, json=MagicMock(return_value={
+            "sex": "Male",
+            "height": 180,
+            "weight": 75,
+            "goal_weight": 70,
+            "fat_rate": 20,
+            "goal_fat_rate": 15,
+        })),
+        MagicMock(status_code=200, json=MagicMock(return_value=[
+            {"workout_name": "Push Ups"},
+            {"workout_name": "Sit Ups"}
+        ])),
+    ]
+    mock_requests_post.side_effect = requests.RequestException("Network error")
+    response = client.post("/api/generate-weekly-plan")
+
+    assert response.status_code == 500
+    assert response.json == {"success": False, "message": "Error communicating with ML Client"}
+    mock_requests_get.assert_any_call(f"{DB_SERVICE_URL}/users/get/123")
+    mock_requests_get.assert_any_call(f"{DB_SERVICE_URL}/exercises/all")
+    mock_requests_post.assert_called_once()
+
+### Test add_plan function ###
+@patch("app.search_exercise")
+@patch("app.add_todo_api")
+def test_add_plan_success(mock_add_todo_api, mock_search_exercise):
+    """Test adding a plan successfully."""
+    mock_search_exercise.side_effect = lambda name: [{"_id": f"{name}_id"}] if name != "Nonexistent" else []
+    date = datetime(2024, 12, 1)
+    plan = {
+        "Day 1": ["Push Ups", "Sit Ups"],
+        "Day 2": ["Nonexist", "Squats"],
+        "Explaining": "Details about the plan."
+    }
+
+    add_plan(date, plan)
+
+    mock_search_exercise.assert_any_call("Push Ups")
+    mock_search_exercise.assert_any_call("Sit Ups")
+    mock_search_exercise.assert_any_call("Nonexist")
+    mock_search_exercise.assert_any_call("Squats")
+
+    mock_add_todo_api.assert_any_call("Push Ups_id", "2024-12-01")
+    mock_add_todo_api.assert_any_call("Sit Ups_id", "2024-12-01")
+    mock_add_todo_api.assert_any_call("Squats_id", "2024-12-02")
+    assert mock_add_todo_api.call_count == 4
+
+
+@patch("app.search_exercise")
+@patch("app.add_todo_api")
+def test_add_plan_empty_plan(mock_add_todo_api, mock_search_exercise):
+    """Test adding an empty plan."""
+    date = datetime(2024, 12, 1)
+    plan = {}
+    add_plan(date, plan)
+
+    mock_search_exercise.assert_not_called()
+    mock_add_todo_api.assert_not_called()
+
+
+@patch("app.search_exercise")
+@patch("app.add_todo_api")
+def test_add_plan_no_matching_exercises(mock_add_todo_api, mock_search_exercise):
+    """Test adding a plan with no matching exercises."""
+    mock_search_exercise.side_effect = lambda name: []
+    date = datetime(2024, 12, 1)
+    plan = {
+        "Day 1": ["Nonexistent Exercise"],
+        "Day 2": ["Another Nonexistent Exercise"]
+    }
+
+    add_plan(date, plan)
+
+    mock_search_exercise.assert_any_call("Nonexistent Exercise")
+    mock_search_exercise.assert_any_call("Another Nonexistent Exercise")
+    mock_add_todo_api.assert_not_called()
+
+### Test get_workout_data function ###
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_workout_data_success(mock_current_user, mock_requests_get):
+    """Test get_workout_data with successful API call."""
+    mock_current_user.id = "123"
+    mock_requests_get.return_value.status_code = 200
+    mock_requests_get.return_value.json.return_value = [
+        {
+            "date": "Mon, 04 Dec 2023 10:00:00 EST",
+            "todo": [{"workout_name": "Push Ups"}, {"workout_name": "Sit Ups"}],
+        },
+        {
+            "date": "Tue, 05 Dec 2023 10:00:00 EST",
+            "todo": [{"workout_name": "Squats"}],
+        },
+    ]
+
+    with app.test_request_context('/api/workout-data'):
+        response = get_workout_data()
+        assert response.status_code == 200
+        assert response.json == {
+            "2023-12-04": 2,
+            "2023-12-05": 1,
+        }
+    mock_requests_get.assert_called_once_with(f"{DB_SERVICE_URL}/todo/123")
+
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_workout_data_no_workouts(mock_current_user, mock_requests_get):
+    """Test get_workout_data when there are no workouts."""
+    mock_current_user.id = "123"
+    mock_requests_get.return_value.status_code = 200
+    mock_requests_get.return_value.json.return_value = []
+
+    with app.test_request_context('/api/workout-data'):
+        response = get_workout_data()
+        assert response.status_code == 200
+        assert response.json == {}
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_workout_data_api_failure(mock_current_user, mock_requests_get, client):
+    """Test get_workout_data when the API call fails."""
+    mock_current_user.id = "123"
+    mock_requests_get.return_value.status_code = 500
+    response = client.get("/api/workout-data")
+
+    assert response.status_code == 500
+    assert response.json == {"error": "Failed to retrieve workout data"}
+    mock_requests_get.assert_called_once_with(f"{DB_SERVICE_URL}/todo/123")
+
+
+@patch("app.requests.get")
+@patch("app.current_user")
+def test_get_workout_data_request_exception(mock_current_user, mock_requests_get, client):
+    """Test get_workout_data when a request exception occurs."""
+    mock_current_user.id = "123"
+    mock_requests_get.side_effect = requests.RequestException("Network error")
+    response = client.get("/api/workout-data")
+
+    assert response.status_code == 500
+    assert response.json == {"error": "Failed to retrieve workout data"}
+    mock_requests_get.assert_called_once_with(f"{DB_SERVICE_URL}/todo/123")
+
+### Test save_plan function ###
+@patch("app.requests.post")
+@patch("app.current_user")
+def test_save_plan_success(mock_current_user, mock_requests_post):
+    """Test saving a plan successfully."""
+    mock_current_user.id = "123"
+    mock_requests_post.return_value.status_code = 200
+    mock_requests_post.return_value.json.return_value = {"success": True, "message": "Plan saved successfully"}
+
+    with app.test_request_context(
+        '/api/plan/save',
+        method="POST",
+        json={"plan": {"Day 1": ["Push Ups", "Sit Ups"], "Day 2": ["Squats"]}}
+    ):
+        response = save_plan()
+
+        assert response.status_code == 200
+        assert response.json == {"success": True, "message": "Plan saved successfully"}
+        mock_requests_post.assert_called_once_with(
+            f"{DB_SERVICE_URL}/plan/save",
+            json={
+                "user_id": "123",
+                "plan": {"Day 1": ["Push Ups", "Sit Ups"], "Day 2": ["Squats"]},
+            },
+        )
+
+@patch("app.requests.post")
+@patch("app.current_user")
+def test_save_plan_no_data(mock_current_user, mock_requests_post):
+    """Test saving a plan with no data."""
+    mock_current_user.id = "123"
+
+    with app.test_request_context(
+        '/api/plan/save',
+        method="POST",
+        json=None
+    ):
+        response = save_plan()
+
+        assert response.status_code == 400
+        assert response.json == {"success": False, "message": "No data provided"}
+        mock_requests_post.assert_not_called()
+
+
+@patch("app.requests.post")
+@patch("app.current_user")
+def test_save_plan_no_plan_data(mock_current_user, mock_requests_post):
+    """Test saving a plan with no plan data."""
+    mock_current_user.id = "123"
+
+    with app.test_request_context(
+        '/api/plan/save',
+        method="POST",
+        json={"random_field": "value"}
+    ):
+        response = save_plan()
+
+        assert response.status_code == 400
+        assert response.json == {"success": False, "message": "Plan data is required"}
+        mock_requests_post.assert_not_called()
+
+
+@patch("app.requests.post")
+@patch("app.current_user")
+def test_save_plan_request_exception(mock_current_user, mock_requests_post):
+    """Test saving a plan when a request exception occurs."""
+    mock_current_user.id = "123"
+    mock_requests_post.side_effect = requests.RequestException("Network error")
+
+    with app.test_request_context(
+        '/api/plan/save',
+        method="POST",
+        json={"plan": {"Day 1": ["Push Ups", "Sit Ups"]}}
+    ):
+        response = save_plan()
+
+        assert response.status_code == 500
+        assert response.json == {"success": False, "message": "Network error"}
+        mock_requests_post.assert_called_once_with(
+            f"{DB_SERVICE_URL}/plan/save",
+            json={
+                "user_id": "123",
+                "plan": {"Day 1": ["Push Ups", "Sit Ups"]},
+            },
+        )
 
 if __name__ == "__main__":
     pytest.main()
