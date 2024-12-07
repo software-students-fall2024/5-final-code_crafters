@@ -837,8 +837,8 @@ def add_plan(date, plan: dict):
 @login_required
 def get_workout_data():
     """
-    获取用户的 To-Do 数据并按日期统计
-    返回每一天的任务数量
+    retrieve workout data from db-service and
+    return the number of workouts done per day.
     """
     try:
         user_id = current_user.id
@@ -875,7 +875,7 @@ def get_workout_data():
 @login_required
 def save_plan():
     """
-    保存计划到数据库服务
+    save the generated plan to the db-service.
     """
     try:
         data = request.json
@@ -988,7 +988,7 @@ def delete_todo_by_date():
 @login_required
 def delete_exercise_by_date():
     """
-    根据日期和 exercise_id 删除指定的 To-Do 项目
+    delete exercise by date and exercise_id using db-service.
     """
     data = request.json
     date = data.get("date")  
