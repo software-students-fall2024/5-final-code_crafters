@@ -2132,6 +2132,7 @@ def test_get_workout_data_success(mock_current_user, mock_requests_get):
 
     with app.test_request_context("/api/workout-data"):
         response = get_workout_data()
+        response = make_response(response)
 
         assert response.status_code == 200
         assert response.json == {
