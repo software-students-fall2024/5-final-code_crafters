@@ -20,11 +20,16 @@ jobs:
       # Step 3: Install dependencies
       - name: Install dependencies
         run: |
-          cd db-service
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install pytest pytest-cov pymongo werkzeug python-dotenv certifi
 
-      # Step 4: Run pytest with coverage
+      # Step 4: Set environment variables from Secrets
+      - name: Set environment variables
+        run: |
+          echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> $GITHUB_ENV
+          echo "DB_NAME=${{ secrets.DB_NAME }}" >> $GITHUB_ENV
+
+      # Step 5: Run pytest with coverage
       - name: Run pytest with coverage
         run: |
           cd db-service
