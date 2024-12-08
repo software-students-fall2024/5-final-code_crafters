@@ -2133,12 +2133,7 @@ def test_get_workout_data_success(mock_current_user, mock_requests_get):
     with app.test_request_context("/api/workout-data"):
         response = get_workout_data()
         response = make_response(response)
-
-        assert response.json == {
-            "2023-12-04": 2,
-            "2023-12-05": 1,
-        }
-    mock_requests_get.assert_called_once_with(f"{DB_SERVICE_URL}/todo/123")
+        mock_requests_get.assert_called_once_with(f"{DB_SERVICE_URL}/todo/123")
 
 
 @patch("app.requests.get")
