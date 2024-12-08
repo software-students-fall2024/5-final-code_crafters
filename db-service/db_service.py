@@ -8,12 +8,19 @@ import certifi
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
 
-app = Flask(__name__)
 load_dotenv()
 
-mongo_uri = os.getenv("MONGO_URI")
-client = MongoClient(mongo_uri, tls=True, tlsCAFile=certifi.where())
-db = client["fitness_db"]
+mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+db_name = os.getenv("DB_NAME", "fitness_db")
+
+if mongo_uri.startswith("mongodb+srv://"):
+    client = MongoClient(mongo_uri, tls=True, tlsCAFile=certifi.where())
+else:
+    client = MongoClient(mongo_uri)
+
+db = client[db_name]
+
+app = Flask(__name__)
 
 todo_collection = db["todo"]
 exercises_collection = db["exercises"]
@@ -22,11 +29,9 @@ search_history_collection = db["search_history"]
 edit_transcription_collection = db["edit_transcription"]
 plan_collection = db["plans"]
 
+
 def add_or_skip_todo(user_id):
-    """
-    插入新的 To-Do 数据之前，检查是否已存在相同的 user_id 和日期记录。
-    如果存在，不插入；如果不存在，插入新记录。
-    """
+
     try:
         today_date = datetime.utcnow().strftime("%Y-%m-%d")
         
