@@ -2121,11 +2121,11 @@ def test_get_workout_data_success(mock_current_user, mock_requests_get):
     mock_requests_get.return_value.status_code = 200
     mock_requests_get.return_value.json.return_value = [
         {
-            "date": "Thu, 05 Dec 2024 10:00:00 EST",
+            "date": "Thu, 05 Dec 2024 10:00:00 UTC",
             "todo": [{"exercise_id": "id1"}, {"exercise_id": "id2"}],
         },
         {
-            "date": "Fri, 06 Dec 2024 10:00:00 EST",
+            "date": "Fri, 06 Dec 2024 10:00:00 UTC",
             "todo": [{"exercise_id": "id3"}],
         },
     ]
