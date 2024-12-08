@@ -6,6 +6,9 @@ name = "pypi"
 [dev-packages]
 pytest = "*"
 python-dotenv = "*"
+pylint = "*"
+black = "*"
+pytest-cov = "*"
 
 [packages]
 flask = "*"
