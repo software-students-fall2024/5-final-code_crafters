@@ -2116,30 +2116,29 @@ def test_add_plan_no_matching_exercises(mock_add_todo_api, mock_search_exercise)
 @patch("app.requests.get")
 @patch("app.current_user")
 def test_get_workout_data_success(mock_current_user, mock_requests_get):
-    """Test get_workout_data with successful API call."""
-    mock_current_user.id = "123"
+    """Test get_workout_data with successful response."""
+    mock_current_user.id = 123
     mock_requests_get.return_value.status_code = 200
     mock_requests_get.return_value.json.return_value = [
         {
-            "date": "Wed, 04 Dec 2023 10:00:00 EST",
-            "todo": [{"workout_name": "Push Ups"}, {"workout_name": "Sit Ups"}],
+            "date": "Thu, 05 Dec 2024 10:00:00 EST",
+            "todo": [{"exercise_id": "id1"}, {"exercise_id": "id2"}],
         },
         {
-            "date": "Thu, 05 Dec 2023 10:00:00 EST",
-            "todo": [{"workout_name": "Squats"}],
+            "date": "Fri, 06 Dec 2024 10:00:00 EST",
+            "todo": [{"exercise_id": "id3"}],
         },
     ]
 
-    with app.test_request_context("/api/workout-data"):
-        response = get_workout_data()
-        response = make_response(response)
-
+    with app.test_client() as client:
+        response = client.get("/api/workout-data")
         assert response.status_code == 200
-        assert response.json == {
-            "2023-12-04": 2,
-            "2023-12-05": 1,
+        response_data = response.get_json()
+        assert response_data == {
+            "2024-12-05": 2,
+            "2024-12-06": 1,
         }
-        mock_requests_get.assert_called_once_with(f"{DB_SERVICE_URL}/todo/123")
+    mock_requests_get.assert_called_once_with(f"{DB_SERVICE_URL}/todo/123")
 
 
 @patch("app.requests.get")
