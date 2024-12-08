@@ -5,6 +5,7 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
+
 @app.route("/transcribe", methods=["POST"])
 def transcribe():
     """Communicate between web app and ml client.
