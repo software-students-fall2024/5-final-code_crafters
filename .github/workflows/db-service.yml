@@ -5,10 +5,6 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        # Repeat the same job for each subsystem in the following subdirectories
-        subdir: [db-service]
 
     steps:
       # Step 1: Checkout code
@@ -19,29 +15,29 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.12" # Update Python version as needed
+          python-version: "3.11"
 
-      # Step 3: Install pipenv and dependencies
+      # Step 3: Install dependencies
       - name: Install dependencies
-        if: ${{ hashFiles(format('{0}/**/*.py', matrix.subdir)) != '' }}
         run: |
-          cd ${{ matrix.subdir }}
           python -m pip install --upgrade pip
-          python -m pip install pipenv
-          pipenv install --dev
+          python -m pip install pytest pytest-cov pymongo
 
-      # Step 4: Run pytest to execute unit tests for each subdirectory
-      - name: Run pytest
-        if: ${{ hashFiles(format('{0}/**/*.py', matrix.subdir)) != '' }}
+      # Step 4: Setup MongoDB
+      - name: Setup MongoDB
+        uses: supercharge/mongodb-github-action@1.5.0
+        with:
+          mongodb-version: '5.0'
+
+      # Step 5: Run pytest with coverage
+      - name: Run pytest with coverage
         run: |
-          cd ${{ matrix.subdir }}
-          pipenv run pytest --cov=. --cov-report xml
+          pytest test_db_service.py --cov=db_service --cov-report=xml --cov-report=term-missing
 
-      # Step 5: Upload coverage report (optional, if you need coverage report)
+      # Step 6: Upload coverage report (optional)
       - name: Upload coverage to Codecov
-        if: ${{ hashFiles(format('{0}/**/*.py', matrix.subdir)) != '' }}
         uses: codecov/codecov-action@v3
         with:
-          files: ${{ matrix.subdir }}/coverage.xml
-          flags: ${{ matrix.subdir }}
-          name: codecov-coverage-report-${{ matrix.subdir }}
+          files: coverage.xml
+          flags: db-service
+          name: codecov-coverage-report-db-service
