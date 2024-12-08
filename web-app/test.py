@@ -2121,11 +2121,11 @@ def test_get_workout_data_success(mock_current_user, mock_requests_get):
     mock_requests_get.return_value.status_code = 200
     mock_requests_get.return_value.json.return_value = [
         {
-            "date": "Mon, 04 Dec 2023 10:00:00 EST",
+            "date": "Wed, 04 Dec 2023 10:00:00 EST",
             "todo": [{"workout_name": "Push Ups"}, {"workout_name": "Sit Ups"}],
         },
         {
-            "date": "Tue, 05 Dec 2023 10:00:00 EST",
+            "date": "Thu, 05 Dec 2023 10:00:00 EST",
             "todo": [{"workout_name": "Squats"}],
         },
     ]
@@ -2133,6 +2133,12 @@ def test_get_workout_data_success(mock_current_user, mock_requests_get):
     with app.test_request_context("/api/workout-data"):
         response = get_workout_data()
         response = make_response(response)
+
+        assert response.status_code == 200
+        assert response.json == {
+            "2023-12-04": 2,
+            "2023-12-05": 1,
+        }
         mock_requests_get.assert_called_once_with(f"{DB_SERVICE_URL}/todo/123")
 
 
