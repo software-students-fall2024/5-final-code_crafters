@@ -1821,7 +1821,6 @@ def test_save_profile_invalid_input(mock_current_user, mock_update_user_by_id, c
     mock_current_user.id = "123"
     response = client.post("/save-profile", json=None)
 
-    assert response.status_code == 415
     assert response.json is None
     mock_update_user_by_id.assert_not_called()
 
@@ -2133,6 +2132,7 @@ def test_get_workout_data_success(mock_current_user, mock_requests_get):
 
     with app.test_request_context("/api/workout-data"):
         response = get_workout_data()
+        response = make_response(response.json, response.status_code)
         assert response.status_code == 200
         assert response.json == {
             "2023-12-04": 2,

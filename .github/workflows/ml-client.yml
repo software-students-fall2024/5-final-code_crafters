@@ -1,0 +1,47 @@
+name: Python Test Workflow - Machine Learing Client
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Repeat the same job for each subsystem in the following subdirectories
+        subdir: [machine-learning-client]
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12" # Update Python version as needed
+
+      # Step 3: Install pipenv and dependencies
+      - name: Install dependencies
+        if: ${{ hashFiles(format('{0}/**/*.py', matrix.subdir)) != '' }}
+        run: |
+          cd ${{ matrix.subdir }}
+          python -m pip install --upgrade pip
+          python -m pip install pipenv
+          pipenv install --dev
+
+      # Step 4: Run pytest to execute unit tests for each subdirectory
+      - name: Run pytest
+        if: ${{ hashFiles(format('{0}/**/*.py', matrix.subdir)) != '' }}
+        run: |
+          cd ${{ matrix.subdir }}
+          pipenv run pytest --cov=. --cov-report xml
+
+      # Step 5: Upload coverage report (optional, if you need coverage report)
+      - name: Upload coverage to Codecov
+        if: ${{ hashFiles(format('{0}/**/*.py', matrix.subdir)) != '' }}
+        uses: codecov/codecov-action@v3
+        with:
+          files: ${{ matrix.subdir }}/coverage.xml
+          flags: ${{ matrix.subdir }}
+          name: codecov-coverage-report-${{ matrix.subdir }}
