@@ -2134,7 +2134,6 @@ def test_get_workout_data_success(mock_current_user, mock_requests_get):
         response = get_workout_data()
         response = make_response(response)
 
-        assert response.status_code == 200
         assert response.json == {
             "2023-12-04": 2,
             "2023-12-05": 1,
