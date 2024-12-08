@@ -2133,11 +2133,13 @@ def test_get_workout_data_success(mock_current_user, mock_requests_get):
     with app.test_client() as client:
         response = client.get("/api/workout-data")
         assert response.status_code == 200
+
         response_data = response.get_json()
         assert response_data == {
             "2024-12-05": 2,
             "2024-12-06": 1,
         }
+
     mock_requests_get.assert_called_once_with(f"{DB_SERVICE_URL}/todo/123")
 
 
