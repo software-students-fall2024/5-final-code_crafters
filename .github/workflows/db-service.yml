@@ -2,11 +2,9 @@ name: Python Test Workflow - Database Service
 
 on:
   push:
-    paths:
-      - 'db-service/**'
-  pull_request:
-    paths:
-      - 'db-service/**'
+    branches:
+      - main
+      - master
 
 jobs:
   test:
@@ -58,6 +56,19 @@ jobs:
           cd ${{ matrix.subdir }}
           pytest test_db_service.py -v --cov=db_service --cov-report=xml --cov-report=term-missing
       
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+        
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./db-service
+          push: true
+          tags: blackcloudkn/db-service:latest
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
