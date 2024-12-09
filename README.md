@@ -1,6 +1,6 @@
 ![Test-ML](https://github.com/software-students-fall2024/5-final-code_crafters/actions/workflows/ml-client.yml/badge.svg)
 ![Test-Web](https://github.com/software-students-fall2024/5-final-code_crafters/actions/workflows/web-app.yml/badge.svg)
-<!-- ![Test-DB](https://github.com/software-students-fall2024/5-final-code_crafters/actions/workflows/db-service.yml/badge.svg) -->
+![Test-DB](https://github.com/software-students-fall2024/5-final-code_crafters/actions/workflows/db-service.yml/badge.svg)
 
 # Final Project
 
