@@ -127,6 +127,7 @@ pipenv install
 ```
 pipenv shell
 ```
+And you can access our Fitness Tracker.
 
 ## Team members
 
