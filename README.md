@@ -150,7 +150,7 @@ pipenv install
 ```
 pipenv shell
 ```
-And you can access our Fitness Tracker.
+And you can access our Fitness Tracker [Here](http://138.197.83.21:5001)! .
 
 ## Team members
 
