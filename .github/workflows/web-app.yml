@@ -54,9 +54,9 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
-          context: ./machine-learning-client
+          context: ./web-app
           push: true
-          tags: blackcloudkn/machine-learning-client:latest
+          tags: blackcloudkn/web-app:latest
 
       - name: Upload coverage to Codecov
         if: ${{ hashFiles(format('{0}/**/*.py', matrix.subdir)) != '' }}
