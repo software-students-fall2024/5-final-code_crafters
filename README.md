@@ -87,21 +87,21 @@ docker-compose down
 
 - Web-App: [DockerHub Link](https://hub.docker.com/repository/docker/blackcloudkn/web-app/general)
 
-Pull the image:
+- Pull the image:
 ```
 docker pull blackcloudkn/web-app:latest
 ```
 
 - Machine Learning Client: [DockerHub Link](https://hub.docker.com/repository/docker/blackcloudkn/machine-learning-client/general)
 
-Pull the image:
+- Pull the image:
 ```
 docker pull blackcloudkn/machine-learning-client:latest
 ```
 
 - MongoDB Database: [DockerHub Link](https://hub.docker.com/repository/docker/blackcloudkn/db-service/general)
 
-Pull the image:
+- Pull the image:
 ```
 docker pull blackcloudkn/db-service:latest
 ```
