@@ -1023,4 +1023,4 @@ def delete_exercise_by_date():
         return jsonify({"success": False, "message": f"Error communicating with db-service: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    app.run(host="0.0.0.0", port=5001)
