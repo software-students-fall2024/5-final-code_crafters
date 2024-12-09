@@ -62,22 +62,3 @@ jobs:
           files: ${{ matrix.subdir }}/coverage.xml
           flags: ${{ matrix.subdir }}
           name: codecov-coverage-report-${{ matrix.subdir }}
-
-      - name: Deploy to Existing DigitalOcean Droplet
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.DROPLET_IP }}
-          username: root
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          debug: true
-          script: |
-            # Navigate to the deployment directory
-            cd /root/app
-
-            # Pull the latest images from Docker Hub
-            docker pull blackcloudkn/web-app:latest
-            docker pull blackcloudkn/db-service:latest
-
-            # Restart the containers using docker-compose
-            docker-compose down
-            docker-compose up -d
