@@ -23,6 +23,8 @@ services:
       - app-network
     volumes:
       - shared-volume:/app/uploads
+    environment:
+      - MONGO_URI=${MONGO_URI}
 
   machine-learning-client:
     build:
@@ -33,6 +35,9 @@ services:
       - app-network
     volumes:
       - shared-volume:/app/uploads
+    environment:
+      GOOGLE_CLOUD_SERVICE_ACCOUNT_JSON : ${GOOGLE_CLOUD_SERVICE_ACCOUNT_JSON}
+      GEMINI_API_KEY : ${GEMINI_API_KEY}
 
 networks:
   app-network:
