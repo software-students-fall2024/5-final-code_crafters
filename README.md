@@ -6,8 +6,6 @@
 
 This app is a comprehensive fitness tracker that empowers users at all fitness levels to track user workout progress, create personalized workout plans, log exercise details. The user can speak with the app, which can recognize the user's speech and then search for exercises or edit exercises logs based on the spoken input. Meanwhile, the user can refer to the large language model to generate weekly workout plan based on user profile.
 
-## Subsystems
-
 ## Prerequisites
 Make sure you have the following software installed on your machine:
 
