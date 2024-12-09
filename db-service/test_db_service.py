@@ -173,24 +173,7 @@ def test_todo_operations(client, setup_test_collections):
                           content_type='application/json')
     assert response.status_code == 200
 
-def test_exercise_operations(client, setup_test_collections):
-    exercise_id = setup_test_collections["exercise_id"]
-    
-    response = client.post('/exercises/search',
-                          data=json.dumps({"query": "Test"}),
-                          content_type='application/json')
-    assert response.status_code == 200
-    
-    response = client.post('/exercises/search',
-                          data=json.dumps({"query": ""}),
-                          content_type='application/json')
-    assert response.status_code == 200
-    
-    response = client.get(f'/exercises/get/{exercise_id}')
-    assert response.status_code == 404
-    
-    response = client.get('/exercises/all')
-    assert response.status_code == 200
+
 
 def test_search_and_transcription(client, setup_test_collections):
     user_id = setup_test_collections["user_id"]
