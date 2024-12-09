@@ -83,11 +83,28 @@ To stop and remove the containers, networks, and other resources created by `doc
 docker-compose down
 ```
 
-## Container Images
+## DockerHub Images
 
 - Web-App: [DockerHub Link](https://hub.docker.com/repository/docker/blackcloudkn/web-app/general)
+
+Pull the image:
+```
+docker pull blackcloudkn/web-app:latest
+```
+
 - Machine Learning Client: [DockerHub Link](https://hub.docker.com/repository/docker/blackcloudkn/machine-learning-client/general)
+
+Pull the image:
+```
+docker pull blackcloudkn/machine-learning-client:latest
+```
+
 - MongoDB Database: [DockerHub Link](https://hub.docker.com/repository/docker/blackcloudkn/db-service/general)
+
+Pull the image:
+```
+docker pull blackcloudkn/db-service:latest
+```
 
 ## Setup Virtual Environment Instructions
 
