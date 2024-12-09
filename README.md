@@ -148,7 +148,10 @@ pipenv install
 ```
 pipenv shell
 ```
-And you can access our Fitness Tracker [Here](http://165.227.79.243:5001)! .
+
+## Project Link
+
+Fitness Tracker: And you can access our Fitness Tracker [Here](http://165.227.79.243:5001)! .
 
 ## Team members
 
