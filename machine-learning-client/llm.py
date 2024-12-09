@@ -143,7 +143,7 @@ def plan_generation(user_info):
         return "Error generating plan"
 
 
-# if __name__ == '__main__':
-    # response = plan_generation(mock_user_info)
-    # print(response)
-    # print("\nFinish")
+if __name__ == '__main__':
+    response = plan_generation(mock_user_info)
+    print(response)
+    print("\nFinish")

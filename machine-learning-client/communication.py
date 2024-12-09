@@ -36,13 +36,10 @@ def plan():
     Provide a function generate a plan
     """
     user_info = request.json
+    # print(user_info)
     if not user_info:
         print("User information is required")
         return jsonify({"error": "User information is required"}), 400
-
-    if "name" not in user_info:
-        print("User information is not complete")
-        return jsonify({"error": "User information is not complete"}), 400
 
     result = plan_generation(user_info)
     if result == "Error generating plan":

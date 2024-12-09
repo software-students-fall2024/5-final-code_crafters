@@ -28,7 +28,7 @@ services:
     build:
       context: ./machine-learning-client
     ports:
-      - "8081:8080"  
+      - "8080:8080"  
     networks:
       - app-network
     volumes:
