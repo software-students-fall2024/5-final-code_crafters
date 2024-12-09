@@ -24,7 +24,7 @@ def get_google_cloud_credentials():
         raise EnvironmentError(
             "Service account JSON not found in environment variables"
         )
-
+    print(service_account_json)
     credentials_dict = json.loads(service_account_json)
     credentials = service_account.Credentials.from_service_account_info(
         credentials_dict
@@ -90,7 +90,8 @@ def transcribe_file(audio_file: str, credentials) -> speech.RecognizeResponse:
 
 
 # if __name__ == "__main__":
-    # credentials = get_google_cloud_credentials()
-    # res = transcribe_file("./machine-learning-client/recording.wav", credentials)
-    # print(res)
+#     credentials = get_google_cloud_credentials()
+#     print("Environment variable value:", os.getenv("GOOGLE_CLOUD_SERVICE_ACCOUNT_JSON"))
+#     res = transcribe_file("./machine-learning-client/recording.wav", credentials)
+#     print(res)
     # app.run(host="0.0.0.0", port=8080)
