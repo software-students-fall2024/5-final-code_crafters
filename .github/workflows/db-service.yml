@@ -1,63 +1,77 @@
 name: Python Test Workflow - Database Service
 
-on: []
+on:
+  push:
+    branches:
+      - main
+      - master
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    
     strategy:
       matrix:
-        # Repeat the same job for each subsystem in the following subdirectories
         subdir: [db-service]
-
+    
+    services:
+      mongodb:
+        image: mongo:4.4
+        ports:
+          - 27017:27017
+    
+    env:
+      ENV: "TEST"
+      TEST_MONGO_URI: ${{ secrets.TEST_MONGO_URI }}
+      TEST_DB_NAME: ${{ secrets.TEST_DB_NAME }}
+      MONGO_URI: ${{ secrets.MONGO_URI }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+    
     steps:
-      # Step 1: Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
-
-      # Step 2: Set up Python environment
+      
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.12" # Update Python version as needed
-
-      # Step 3: Install pipenv and dependencies
+          python-version: "3.11"
+      
       - name: Install dependencies
-        if: ${{ hashFiles(format('{0}/**/*.py', matrix.subdir)) != '' }}
         run: |
           cd ${{ matrix.subdir }}
           python -m pip install --upgrade pip
-          python -m pip install pipenv
-          pipenv install --dev
+          pip install pytest pytest-cov pymongo python-dotenv flask werkzeug certifi
+      
+      - name: Create env file
+        run: |
+          cd ${{ matrix.subdir }}
+          echo "ENV=TEST" > .env
+          echo "TEST_MONGO_URI=${{ secrets.TEST_MONGO_URI }}" >> .env
+          echo "TEST_DB_NAME=${{ secrets.TEST_DB_NAME }}" >> .env
+          echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env
+          echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
+      
+      - name: Run pytest
+        run: |
+          cd ${{ matrix.subdir }}
+          pytest test_db_service.py -v --cov=db_service --cov-report=xml --cov-report=term-missing
+      
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+        
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./db-service
+          push: true
+          tags: blackcloudkn/db-service:latest
 
-      # Step 4: Run pytest to execute unit tests for each subdirectory
-      # - name: Run pytest
-      #   if: ${{ hashFiles(format('{0}/**/*.py', matrix.subdir)) != '' }}
-      #   run: |
-      #     cd ${{ matrix.subdir }}
-      #     pipenv run pytest --cov=. --cov-report xml
-
-      # Step 5: Upload coverage report (optional, if you need coverage report)
       - name: Upload coverage to Codecov
-        if: ${{ hashFiles(format('{0}/**/*.py', matrix.subdir)) != '' }}
         uses: codecov/codecov-action@v3
         with:
           files: ${{ matrix.subdir }}/coverage.xml
           flags: ${{ matrix.subdir }}
           name: codecov-coverage-report-${{ matrix.subdir }}
-      
-      # Step 6: login to DockerHub
-      - name: Log in to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      # Build and push the Docker image
-      - name: Pull MongoDB image
-        run: docker pull mongo
-
-      - name: Tag and push MongoDB image
-        run: |
-          docker tag mongo dave147/whatscooking-db:latest
-          docker push dave147/whatscooking-db:latest
