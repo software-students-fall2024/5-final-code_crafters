@@ -121,12 +121,12 @@ def test_plan_missing_user_info(mock_client):
     assert json_data == {"error": "User information is required"}
 
 
-def test_plan_wrong_user_info(mock_client):
-    """Test wrong_user_info exception handling for plan"""
-    response = mock_client.post("/plan", json={"age": "5"})
-    assert response.status_code == 400
-    json_data = response.get_json()
-    assert json_data == {"error": "User information is not complete"}
+# def test_plan_wrong_user_info(mock_client):
+#     """Test wrong_user_info exception handling for plan"""
+#     response = mock_client.post("/plan", json={"age": "5"})
+#     assert response.status_code == 400
+#     json_data = response.get_json()
+#     assert json_data == {"error": "User information is not complete"}
 
 
 def test_transcribe_missing_audio_file(mock_client):

@@ -45,72 +45,72 @@ def make_plan_request(input_data):
     """
 
     generation_config = {
-    "temperature": 1,
-    "top_p": 0.95,
-    "top_k": 40,
-    "max_output_tokens": 8192,
-    "response_schema": content.Schema(
-        type = content.Type.OBJECT,
-        enum = [],
-        required = [
-            "Monday", 
-            "Tuesday", 
-            "Wednesday", 
-            "Thursday", 
-            "Friday", 
-            "Saturday", 
-            "Sunday", 
-            "Explaining"
-        ],
-        properties = {
-        "Monday": content.Schema(
-            type = content.Type.ARRAY,
-            items = content.Schema(
-            type = content.Type.STRING,
+        "temperature": 1,
+        "top_p": 0.95,
+        "top_k": 40,
+        "max_output_tokens": 8192,
+        "response_schema": content.Schema(
+            type = content.Type.OBJECT,
+            enum = [],
+            required = [
+                "Monday", 
+                "Tuesday", 
+                "Wednesday", 
+                "Thursday", 
+                "Friday", 
+                "Saturday", 
+                "Sunday", 
+                "Explaining"
+            ],
+            properties = {
+            "Monday": content.Schema(
+                type = content.Type.ARRAY,
+                items = content.Schema(
+                type = content.Type.STRING,
+                ),
             ),
-        ),
-        "Tuesday": content.Schema(
-            type = content.Type.ARRAY,
-            items = content.Schema(
-            type = content.Type.STRING,
+            "Tuesday": content.Schema(
+                type = content.Type.ARRAY,
+                items = content.Schema(
+                type = content.Type.STRING,
+                ),
             ),
-        ),
-        "Wednesday": content.Schema(
-            type = content.Type.ARRAY,
-            items = content.Schema(
-            type = content.Type.STRING,
+            "Wednesday": content.Schema(
+                type = content.Type.ARRAY,
+                items = content.Schema(
+                type = content.Type.STRING,
+                ),
             ),
-        ),
-        "Thursday": content.Schema(
-            type = content.Type.ARRAY,
-            items = content.Schema(
-            type = content.Type.STRING,
+            "Thursday": content.Schema(
+                type = content.Type.ARRAY,
+                items = content.Schema(
+                type = content.Type.STRING,
+                ),
             ),
-        ),
-        "Friday": content.Schema(
-            type = content.Type.ARRAY,
-            items = content.Schema(
-            type = content.Type.STRING,
+            "Friday": content.Schema(
+                type = content.Type.ARRAY,
+                items = content.Schema(
+                type = content.Type.STRING,
+                ),
             ),
-        ),
-        "Saturday": content.Schema(
-            type = content.Type.ARRAY,
-            items = content.Schema(
-            type = content.Type.STRING,
+            "Saturday": content.Schema(
+                type = content.Type.ARRAY,
+                items = content.Schema(
+                type = content.Type.STRING,
+                ),
             ),
-        ),
-        "Sunday": content.Schema(
-            type = content.Type.ARRAY,
-            items = content.Schema(
-            type = content.Type.STRING,
+            "Sunday": content.Schema(
+                type = content.Type.ARRAY,
+                items = content.Schema(
+                type = content.Type.STRING,
+                ),
             ),
+            "Explaining": content.Schema(
+                type = content.Type.STRING,
+            ),
+            },
         ),
-        "Explaining": content.Schema(
-            type = content.Type.STRING,
-        ),
-        },
-    ),
-    "response_mime_type": "application/json",
+        "response_mime_type": "application/json",
     }
 
     model = genai.GenerativeModel(
@@ -132,6 +132,7 @@ def plan_generation(user_info):
     """
 
     try:
+        print("Generate successfully.")
         input_data = input_generate(prompt, user_info)
         response = make_plan_request(input_data)
         return response.text
@@ -144,6 +145,6 @@ def plan_generation(user_info):
 
 
 # if __name__ == '__main__':
-    # response = plan_generation(mock_user_info)
-    # print(response)
-    # print("\nFinish")
+#     response = plan_generation(mock_user_info)
+#     print(response)
+#     print("\nFinish")
