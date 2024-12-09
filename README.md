@@ -84,8 +84,8 @@ docker-compose down
 ### 1. Clone the Repository
 
 ```
-git clone https://github.com/software-students-fall2024/4-containers-code-crafters-1.git
-cd 4-containers-code-crafters-1
+git clone https://github.com/software-students-fall2024/5-final-code_crafters.git
+cd 5-final-code_crafters
 ```
 
 ### 2. Go to the directory that you want to set virtual environment for
@@ -98,6 +98,12 @@ or
 
 ```
 cd machine-learning-client
+```
+
+or
+
+```
+cd db-service
 ```
 
 ### 3. Install pipenv
