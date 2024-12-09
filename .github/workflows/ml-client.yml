@@ -68,7 +68,6 @@ jobs:
         with:
           host: ${{ secrets.DROPLET_IP }}
           username: root
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
           debug: true
           script: |
             # Navigate to the deployment directory
