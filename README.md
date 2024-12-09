@@ -1,12 +1,12 @@
 ![Test-ML](https://github.com/software-students-fall2024/5-final-code_crafters/actions/workflows/ml-client.yml/badge.svg)
 ![Test-Web](https://github.com/software-students-fall2024/5-final-code_crafters/actions/workflows/web-app.yml/badge.svg)
-![Test-DB](https://github.com/software-students-fall2024/5-final-code_crafters/actions/workflows/db-service.yml/badge.svg)
+<!-- ![Test-DB](https://github.com/software-students-fall2024/5-final-code_crafters/actions/workflows/db-service.yml/badge.svg) -->
 
 # Final Project
 
 # Fitness Tracker
 
-This app is a comprehensive fitness tracker that empowers users at all fitness levels to create personalized workout plans, log exercise details.  The user can speak with the app, which can recognize the user's speech and then search for exercises or edit exercises logs based on the spoken input. 
+This app is a comprehensive fitness tracker that empowers users at all fitness levels to track user workout progress, create personalized workout plans, log exercise details. The user can speak with the app, which can recognize the user's speech and then search for exercises or edit exercises logs based on the spoken input. Meanwhile, the user can refer to the large language model to generate weekly workout plan based on user profile.
 
 ## Prerequisites
 Make sure you have the following software installed on your machine:
@@ -53,8 +53,12 @@ GOOGLE_CLOUD_SERVICE_ACCOUNT_JSON='{
 }'
 ```
 
+```
+GEMINI_API_KEY = "<your_api_key>"
+```
+
 - Replace each `<placeholder>` (e.g., `<your_type>`, `<your_project>`) with the corresponding values from your Google Cloud service account.
-- To obtain these values, you need to register a Google Cloud service account and download the JSON key file containing the credentials.
+- To obtain these values, you need to register a Google Cloud service account and download the JSON key file containing the credentials. Also, you would need to Log in to your Gemini account, navigate to the account settings page, vind the API key management section, create a new API key and ensure it has the appropriate permissions.
 
 ## Running the Project with Docker Compose
 To build and start the containers, run the following command:
@@ -84,8 +88,8 @@ docker-compose down
 ### 1. Clone the Repository
 
 ```
-git clone https://github.com/software-students-fall2024/4-containers-code-crafters-1.git
-cd 4-containers-code-crafters-1
+git clone https://github.com/software-students-fall2024/5-final-code_crafters.git
+cd 5-final-code_crafters
 ```
 
 ### 2. Go to the directory that you want to set virtual environment for
@@ -98,6 +102,12 @@ or
 
 ```
 cd machine-learning-client
+```
+
+or
+
+```
+cd db-service
 ```
 
 ### 3. Install pipenv
