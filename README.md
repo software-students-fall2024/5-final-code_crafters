@@ -74,7 +74,7 @@ To build and start the containers, run the following command:
      docker-compose up -d
      ```
 
-3. Access the application (refer to the port mapping specified in `docker-compose.yml`). For example, you might access it at `http://localhost:5001`.
+3. Access the application (refer to the port mapping specified in `docker-compose.yml`). For example, you might access it at `http://localhost:5001`. or `http://138.197.83.21:5001`
 
 ## Stopping the Services
 To stop and remove the containers, networks, and other resources created by `docker-compose up`, use:
